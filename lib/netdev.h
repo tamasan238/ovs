@@ -209,8 +209,6 @@ bool netdev_rxq_enabled(struct netdev_rxq *);
 const char *netdev_rxq_get_name(const struct netdev_rxq *);
 int netdev_rxq_get_queue_id(const struct netdev_rxq *);
 
-// int send_with_tcp(struct dp_packet_batch *);
-int send_with_tcp(void);
 int netdev_rxq_recv(struct netdev_rxq *rx, struct dp_packet_batch *,
                     int *qfill);
 void netdev_rxq_wait(struct netdev_rxq *);

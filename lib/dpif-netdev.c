@@ -34,6 +34,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+
+#include <arpa/inet.h>
+#define PORT 11111
+
 #include "bitmap.h"
 #include "ccmap.h"
 #include "cmap.h"
@@ -5396,6 +5400,71 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
+int
+send_with_tcp(struct dp_packet_batch *batch)
+{
+    int                sockfd;
+    struct sockaddr_in servAddr;
+    char               buff[256];
+    // size_t             len;
+    int                ret;
+    char*              address = "192.168.122.173";
+    // char*              message = "check one two";
+
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        fprintf(stderr, "ERROR: failed to create the socket\n");
+        ret = -1;
+        goto end;
+    }
+
+    memset(&servAddr, 0, sizeof(servAddr));
+
+    servAddr.sin_family = AF_INET;
+    servAddr.sin_port   = htons(PORT);
+
+    if (inet_pton(AF_INET, address, &servAddr.sin_addr) != 1) {
+        fprintf(stderr, "ERROR: invalid address\n");
+        ret = -1;
+        goto end;
+    }
+
+    if ((ret = connect(sockfd, (struct sockaddr*) &servAddr, sizeof(servAddr)))
+         == -1) {
+        fprintf(stderr, "ERROR: failed to connect\n");
+        goto end;
+    }
+
+    // printf("Message for server: ");
+    // memset(buff, 0, sizeof(buff));
+    // if (fgets(buff, sizeof(buff), stdin) == NULL) {
+    //     fprintf(stderr, "ERROR: failed to get message for server\n");
+    //     ret = -1;
+    //     goto socket_cleanup;
+    // }
+    // len = strnlen(buff, sizeof(buff));
+
+    // if (write(sockfd, buff, len) != len) {
+    if (write(sockfd, batch, sizeof(batch)) != sizeof(batch)) {
+        fprintf(stderr, "ERROR: failed to write\n");
+        ret = -1;
+        goto socket_cleanup;
+    }
+
+    memset(buff, 0, sizeof(buff));
+    if (read(sockfd, buff, sizeof(buff)-1) == -1) {
+        fprintf(stderr, "ERROR: failed to read\n");
+        ret = -1;
+        goto socket_cleanup;
+    }
+
+    printf("Server: %s\n", buff);
+
+socket_cleanup:
+    close(sockfd);
+end:
+    return ret;
+}
+
 static int
 dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
                            struct dp_netdev_rxq *rxq,
@@ -5422,6 +5491,8 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
 
     error = netdev_rxq_recv(rxq->rx, &batch, qlen_p);
     if (!error) {
+        send_with_tcp(&batch);
+
         /* At least one packet received. */
         *recirc_depth_get() = 0;
         pmd_thread_ctx_time_update(pmd);

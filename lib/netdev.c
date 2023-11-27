@@ -31,13 +31,6 @@
 #include <sys/ioctl.h>
 #endif
 
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <unistd.h>
-
-#define PORT 11111
-
 #include "cmap.h"
 #include "coverage.h"
 #include "dpif.h"
@@ -719,72 +712,6 @@ bool netdev_rxq_enabled(struct netdev_rxq *rx)
     return enabled;
 }
 
-int
-// send_with_tcp(struct dp_packet_batch *batch)
-send_with_tcp(void)
-{
-    int                sockfd;
-    struct sockaddr_in servAddr;
-    char               buff[256];
-    // size_t             len;
-    int                ret;
-    char*              address = "192.168.122.173";
-    char*              message = "check one two";
-
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        fprintf(stderr, "ERROR: failed to create the socket\n");
-        ret = -1;
-        goto end;
-    }
-
-    memset(&servAddr, 0, sizeof(servAddr));
-
-    servAddr.sin_family = AF_INET;
-    servAddr.sin_port   = htons(PORT);
-
-    if (inet_pton(AF_INET, address, &servAddr.sin_addr) != 1) {
-        fprintf(stderr, "ERROR: invalid address\n");
-        ret = -1;
-        goto end;
-    }
-
-    if ((ret = connect(sockfd, (struct sockaddr*) &servAddr, sizeof(servAddr)))
-         == -1) {
-        fprintf(stderr, "ERROR: failed to connect\n");
-        goto end;
-    }
-
-    // printf("Message for server: ");
-    // memset(buff, 0, sizeof(buff));
-    // if (fgets(buff, sizeof(buff), stdin) == NULL) {
-    //     fprintf(stderr, "ERROR: failed to get message for server\n");
-    //     ret = -1;
-    //     goto socket_cleanup;
-    // }
-    // len = strnlen(buff, sizeof(buff));
-
-    // if (write(sockfd, buff, len) != len) {
-    if (write(sockfd, message, strlen(message)) != strlen(message)) {
-        fprintf(stderr, "ERROR: failed to write\n");
-        ret = -1;
-        goto socket_cleanup;
-    }
-
-    memset(buff, 0, sizeof(buff));
-    if (read(sockfd, buff, sizeof(buff)-1) == -1) {
-        fprintf(stderr, "ERROR: failed to read\n");
-        ret = -1;
-        goto socket_cleanup;
-    }
-
-    printf("Server: %s\n", buff);
-
-socket_cleanup:
-    close(sockfd);
-end:
-    return ret;
-}
-
 /* Attempts to receive a batch of packets from 'rx'.  'batch' should point to
  * the beginning of an array of NETDEV_MAX_BURST pointers to dp_packet.  If
  * successful, this function stores pointers to up to NETDEV_MAX_BURST
@@ -804,8 +731,6 @@ netdev_rxq_recv(struct netdev_rxq *rx, struct dp_packet_batch *batch,
 {
     int retval;
 
-    // retval = send_with_tcp(batch);
-    retval = send_with_tcp();
     retval = rx->netdev->netdev_class->rxq_recv(rx, batch, qfill);
     if (!retval) {
         COVERAGE_INC(netdev_received);
