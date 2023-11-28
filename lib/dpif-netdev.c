@@ -404,7 +404,7 @@ struct dp_offload_thread {
 static struct dp_offload_thread *dp_offload_threads;
 static void *dp_netdev_flow_offload_main(void *arg);
 
-static int sockfd;
+static int sockfd = -1;
 
 static void
 dp_netdev_offload_init(void)
@@ -1682,10 +1682,11 @@ dpif_netdev_init(void)
     unixctl_command_register("dpif-netdev/miniflow-parser-get", "",
                              0, 0, dpif_miniflow_extract_impl_get,
                              NULL);
-
-    if ((connect_socket()) != 0) {
-        fprintf(stderr, "ERROR: Cannot open socket\n");
-        return 1;
+    if(sockfd == -1){
+        if ((connect_socket()) != 0) {
+            fprintf(stderr, "ERROR: Cannot open socket\n");
+            return 1;
+        }
     }
     return 0;
 }
@@ -5458,21 +5459,21 @@ send_with_tcp(struct dp_packet_batch *batch)
     if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-        close(sockfd);
+//        close(sockfd);
     }
 
     // batch
     if (write(sockfd, batch, sizeof(struct dp_packet_batch)) != sizeof(struct dp_packet_batch)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-        close(sockfd);
+//        close(sockfd);
     }
 
     // how many packets
     if (write(sockfd, &(batch->count), sizeof(unsigned long)) != sizeof(unsigned long)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-        close(sockfd);
+//        close(sockfd);
     }
 
     // packets
@@ -5482,14 +5483,14 @@ send_with_tcp(struct dp_packet_batch *batch)
         if (write(sockfd, &size, sizeof(size)) != sizeof(int)) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
-            close(sockfd);
+//            close(sockfd);
         }
 
         // packet
         if (write(sockfd, batch->packets[i], size) != size) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
-            close(sockfd);
+//            close(sockfd);
         }
     }
 
