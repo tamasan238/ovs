@@ -404,7 +404,7 @@ struct dp_offload_thread {
 static struct dp_offload_thread *dp_offload_threads;
 static void *dp_netdev_flow_offload_main(void *arg);
 
-extern int sockfd;
+static int sockfd;
 
 static void
 dp_netdev_offload_init(void)
@@ -1682,6 +1682,11 @@ dpif_netdev_init(void)
     unixctl_command_register("dpif-netdev/miniflow-parser-get", "",
                              0, 0, dpif_miniflow_extract_impl_get,
                              NULL);
+
+    if ((connect_socket()) != 0) {
+        fprintf(stderr, "ERROR: Cannot open socket\n");
+        return 1;
+    }
     return 0;
 }
 
@@ -1936,11 +1941,6 @@ dpif_netdev_open(const struct dpif_class *class, const char *name,
     struct dp_netdev *dp;
     int error;
 
-    if ((socket_open()) != 0) {
-        fprintf(stderr, "ERROR: Cannot open socket\n");
-        return 1;
-    }
-
     ovs_mutex_lock(&dp_netdev_mutex);
     dp = shash_find_data(&dp_netdevs, name);
     if (!dp) {
@@ -2054,10 +2054,10 @@ dpif_netdev_close(struct dpif *dpif)
     dp_netdev_unref(dp);
     free(dpif);
 
-    if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof(int)) {
-        fprintf(stderr, "ERROR: failed to write\n");
-    }
-    close(sockfd);
+    // if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof(int)) {
+    //     fprintf(stderr, "ERROR: failed to write\n");
+    // }
+    // close(sockfd);
 }
 
 static int
@@ -5413,7 +5413,7 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
-int socket_open(void) {
+int connect_socket(void) {
     struct sockaddr_in servAddr;
     // char               buff[256];
     // size_t             len;
