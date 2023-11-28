@@ -5453,6 +5453,7 @@ send_with_tcp(struct dp_packet_batch *batch)
     int ret = 0;
     int size;
 
+    // size of batch
     size = sizeof(batch);
     if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
         fprintf(stderr, "ERROR: failed to write\n");
@@ -5460,26 +5461,31 @@ send_with_tcp(struct dp_packet_batch *batch)
         close(sockfd);
     }
 
+    // batch
     if (write(sockfd, batch, sizeof(struct dp_packet_batch)) != sizeof(struct dp_packet_batch)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
         close(sockfd);
     }
 
+    // how many packets
     if (write(sockfd, &(batch->count), sizeof(unsigned long)) != sizeof(unsigned long)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
         close(sockfd);
     }
 
+    // packets
     for(int i=0; i<batch->count; i++){
         size = sizeof(struct dp_packet);
+        // size of packet
         if (write(sockfd, &size, sizeof(size)) != sizeof(int)) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
             close(sockfd);
         }
 
+        // packet
         if (write(sockfd, batch->packets[i], size) != size) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
