@@ -404,6 +404,8 @@ struct dp_offload_thread {
 static struct dp_offload_thread *dp_offload_threads;
 static void *dp_netdev_flow_offload_main(void *arg);
 
+extern int sockfd;
+
 static void
 dp_netdev_offload_init(void)
 {
@@ -1934,6 +1936,11 @@ dpif_netdev_open(const struct dpif_class *class, const char *name,
     struct dp_netdev *dp;
     int error;
 
+    if ((socket_open()) != 0) {
+        fprintf(stderr, "ERROR: Cannot open socket\n");
+        return 1;
+    }
+
     ovs_mutex_lock(&dp_netdev_mutex);
     dp = shash_find_data(&dp_netdevs, name);
     if (!dp) {
@@ -1947,6 +1954,7 @@ dpif_netdev_open(const struct dpif_class *class, const char *name,
         *dpifp = create_dpif_netdev(dp);
     }
     ovs_mutex_unlock(&dp_netdev_mutex);
+
 
     return error;
 }
@@ -2045,6 +2053,11 @@ dpif_netdev_close(struct dpif *dpif)
 
     dp_netdev_unref(dp);
     free(dpif);
+
+    if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof(int)) {
+        fprintf(stderr, "ERROR: failed to write\n");
+    }
+    close(sockfd);
 }
 
 static int
@@ -5400,12 +5413,9 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
-int
-send_with_tcp(struct dp_packet_batch *batch)
-{
-    int                sockfd;
+int socket_open(void) {
     struct sockaddr_in servAddr;
-    char               buff[256];
+    // char               buff[256];
     // size_t             len;
     int                ret;
     char*              address = "192.168.122.173";
@@ -5414,7 +5424,7 @@ send_with_tcp(struct dp_packet_batch *batch)
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         fprintf(stderr, "ERROR: failed to create the socket\n");
         ret = -1;
-        goto end;
+        return ret;
     }
 
     memset(&servAddr, 0, sizeof(servAddr));
@@ -5425,43 +5435,66 @@ send_with_tcp(struct dp_packet_batch *batch)
     if (inet_pton(AF_INET, address, &servAddr.sin_addr) != 1) {
         fprintf(stderr, "ERROR: invalid address\n");
         ret = -1;
-        goto end;
+        return ret;
     }
 
     if ((ret = connect(sockfd, (struct sockaddr*) &servAddr, sizeof(servAddr)))
          == -1) {
         fprintf(stderr, "ERROR: failed to connect\n");
-        goto end;
+        return ret;
     }
 
-    // printf("Message for server: ");
-    // memset(buff, 0, sizeof(buff));
-    // if (fgets(buff, sizeof(buff), stdin) == NULL) {
-    //     fprintf(stderr, "ERROR: failed to get message for server\n");
-    //     ret = -1;
-    //     goto socket_cleanup;
-    // }
-    // len = strnlen(buff, sizeof(buff));
+    return ret;
+}
 
-    // if (write(sockfd, buff, len) != len) {
-    if (write(sockfd, batch, sizeof(batch)) != sizeof(batch)) {
+int
+send_with_tcp(struct dp_packet_batch *batch)
+{
+    int ret = 0;
+    int size;
+
+    size = sizeof(batch);
+    if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-        goto socket_cleanup;
+        close(sockfd);
     }
 
-    memset(buff, 0, sizeof(buff));
-    if (read(sockfd, buff, sizeof(buff)-1) == -1) {
-        fprintf(stderr, "ERROR: failed to read\n");
+    if (write(sockfd, batch, sizeof(struct dp_packet_batch)) != sizeof(struct dp_packet_batch)) {
+        fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-        goto socket_cleanup;
+        close(sockfd);
     }
 
-    printf("Server: %s\n", buff);
+    if (write(sockfd, &(batch->count), sizeof(unsigned long)) != sizeof(unsigned long)) {
+        fprintf(stderr, "ERROR: failed to write\n");
+        ret = -1;
+        close(sockfd);
+    }
 
-socket_cleanup:
-    close(sockfd);
-end:
+    for(int i=0; i<batch->count; i++){
+        size = sizeof(struct dp_packet);
+        if (write(sockfd, &size, sizeof(size)) != sizeof(int)) {
+            fprintf(stderr, "ERROR: failed to write\n");
+            ret = -1;
+            close(sockfd);
+        }
+
+        if (write(sockfd, batch->packets[i], size) != size) {
+            fprintf(stderr, "ERROR: failed to write\n");
+            ret = -1;
+            close(sockfd);
+        }
+    }
+
+    // memset(buff, 0, sizeof(buff));
+    // if (read(sockfd, buff, sizeof(buff)-1) == -1) {
+    //     fprintf(stderr, "ERROR: failed to read\n");
+    //     ret = -1;
+    //     close(sockfd);
+    // }
+
+    // printf("Server: %s\n", buff);
     return ret;
 }
 
