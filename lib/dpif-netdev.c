@@ -34,8 +34,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-
+#include <stdio.h>
 #include <arpa/inet.h>
+#include <syslog.h>
 #define PORT 11111
 
 #include "bitmap.h"
@@ -2055,10 +2056,10 @@ dpif_netdev_close(struct dpif *dpif)
     dp_netdev_unref(dp);
     free(dpif);
 
-    // if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof(int)) {
-    //     fprintf(stderr, "ERROR: failed to write\n");
-    // }
-    // close(sockfd);
+     if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof("shutdown")) {
+         fprintf(stderr, "ERROR: failed to write\n");
+     }
+     close(sockfd);
 }
 
 static int
@@ -5414,11 +5415,13 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
-int connect_socket(void) {
+int
+connect_socket(void)
+{
     struct sockaddr_in servAddr;
     // char               buff[256];
     // size_t             len;
-    int                ret;
+    int                ret = -1;
     char*              address = "192.168.122.173";
     // char*              message = "check one two";
 
@@ -5427,6 +5430,8 @@ int connect_socket(void) {
         ret = -1;
         return ret;
     }
+
+    ret = sockfd;
 
     memset(&servAddr, 0, sizeof(servAddr));
 
@@ -5440,7 +5445,7 @@ int connect_socket(void) {
     }
 
     if ((ret = connect(sockfd, (struct sockaddr*) &servAddr, sizeof(servAddr)))
-         == -1) {
+        == -1) {
         fprintf(stderr, "ERROR: failed to connect\n");
         return ret;
     }
@@ -5454,43 +5459,48 @@ send_with_tcp(struct dp_packet_batch *batch)
     int ret = 0;
     int size;
 
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
+    syslog(LOG_WARNING, "@@ sockfd: %d", sockfd);
+    closelog();
+
     // size of batch
-    size = sizeof(batch);
+    size = sizeof(*batch);
     if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-//        close(sockfd);
+        close(sockfd);
     }
 
     // batch
-    if (write(sockfd, batch, sizeof(struct dp_packet_batch)) != sizeof(struct dp_packet_batch)) {
+    if (write(sockfd, batch, size) != size) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-//        close(sockfd);
+        close(sockfd);
     }
 
     // how many packets
-    if (write(sockfd, &(batch->count), sizeof(unsigned long)) != sizeof(unsigned long)) {
+    if (write(sockfd, &(batch->count), sizeof(size_t)) != sizeof(size_t)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
-//        close(sockfd);
+        close(sockfd);
     }
 
     // packets
-    for(int i=0; i<batch->count; i++){
-        size = sizeof(struct dp_packet);
+    for(int i=0; i<(batch->count); i++) {
         // size of packet
-        if (write(sockfd, &size, sizeof(size)) != sizeof(int)) {
+        size = sizeof(*(batch->packets[i]));
+        if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
-//            close(sockfd);
+            close(sockfd);
         }
 
         // packet
         if (write(sockfd, batch->packets[i], size) != size) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
-//            close(sockfd);
+            close(sockfd);
         }
     }
 
