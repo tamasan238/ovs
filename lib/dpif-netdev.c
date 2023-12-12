@@ -5462,7 +5462,6 @@ send_with_tcp(struct dp_packet_batch *batch)
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
     syslog(LOG_WARNING, "@@ sockfd: %d", sockfd);
-    closelog();
 
     // size of batch
     size = sizeof(*batch);
@@ -5488,8 +5487,11 @@ send_with_tcp(struct dp_packet_batch *batch)
 
     // packets
     for(int i=0; i<(batch->count); i++) {
+
+        void *packet_data = dp_packet_data(batch->packets[i]);
+
         // size of packet
-        size = sizeof(*(batch->packets[i]));
+        size = dp_packet_size(batch->packets[i]);
         if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
@@ -5497,7 +5499,8 @@ send_with_tcp(struct dp_packet_batch *batch)
         }
 
         // packet
-        if (write(sockfd, batch->packets[i], size) != size) {
+//        if (write(sockfd, batch->packets[i], size) != size) {
+        if (write(sockfd, packet_data, size) != size) {
             fprintf(stderr, "ERROR: failed to write\n");
             ret = -1;
             close(sockfd);
@@ -5512,6 +5515,9 @@ send_with_tcp(struct dp_packet_batch *batch)
     // }
 
     // printf("Server: %s\n", buff);
+
+    closelog();
+
     return ret;
 }
 
