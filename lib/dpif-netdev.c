@@ -5461,8 +5461,8 @@ send_with_tcp(struct dp_packet_batch *batch)
 //    int del = 0;
     char result[NETDEV_MAX_BURST+1]; // pass = 1, drop = 0. include null char
 
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
+//    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+//    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
 
 
     // size of batch
@@ -5528,8 +5528,8 @@ send_with_tcp(struct dp_packet_batch *batch)
     }
 //    batch->count -= del;
 
-    closelog();
-ret = 1; // バッチごと落とさせてみる
+//    closelog();
+    ret = 0; // バッチごと落とさせてみる
     return ret;
 }
 
@@ -5541,7 +5541,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     struct pmd_perf_stats *s = &pmd->perf_stats;
     struct dp_packet_batch batch;
     struct cycle_timer timer;
-    int error;
+    int error = 0;
     int batch_cnt = 0;
     int rem_qlen = 0, *qlen_p = NULL;
     uint64_t cycles;
@@ -5557,11 +5557,17 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
         qlen_p = &rem_qlen;
     }
 
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
+    syslog(LOG_WARNING, "@ (init) error: %d", error);
     error = netdev_rxq_recv(rxq->rx, &batch, qlen_p);
+    syslog(LOG_WARNING, "@ (netdev_rxq_recv)error: %d", error);
     if (!error) {
         error = send_with_tcp(&batch);
+        syslog(LOG_WARNING, "@ (send_with_tcp) error: %d", error);
     }
     if (!error) {
+        syslog(LOG_WARNING, "@ (next bracket)error: %d", error);
         /* At least one packet received. */
         *recirc_depth_get() = 0;
         pmd_thread_ctx_time_update(pmd);
@@ -5591,6 +5597,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
 
         dp_netdev_pmd_flush_output_packets(pmd, false);
     } else {
+        syslog(LOG_WARNING, "@ (error bracket)error: %d", error);
         /* Discard cycles. */
         cycle_timer_stop(&pmd->perf_stats, &timer);
         if (error != EAGAIN && error != EOPNOTSUPP) {
@@ -5600,6 +5607,8 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
                     netdev_rxq_get_name(rxq->rx), ovs_strerror(error));
         }
     }
+
+    closelog();
 
     pmd->ctx.last_rxq = NULL;
 
