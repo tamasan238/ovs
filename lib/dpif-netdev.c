@@ -5422,7 +5422,7 @@ connect_socket(void)
     // char               buff[256];
     // size_t             len;
     int                ret = -1;
-    char*              address = "192.168.122.173";
+    char*              address = "192.168.128.1";
     // char*              message = "check one two";
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -5458,10 +5458,12 @@ send_with_tcp(struct dp_packet_batch *batch)
 {
     int ret = 0;
     int size;
+//    int del = 0;
+    char result[NETDEV_MAX_BURST+1]; // pass = 1, drop = 0. include null char
 
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
-    syslog(LOG_WARNING, "@@ sockfd: %d", sockfd);
+
 
     // size of batch
     size = sizeof(*batch);
@@ -5507,17 +5509,27 @@ send_with_tcp(struct dp_packet_batch *batch)
         }
     }
 
-    // memset(buff, 0, sizeof(buff));
-    // if (read(sockfd, buff, sizeof(buff)-1) == -1) {
-    //     fprintf(stderr, "ERROR: failed to read\n");
-    //     ret = -1;
-    //     close(sockfd);
-    // }
+    // get status
+    memset(result, 0, sizeof(result));
+    if (read(sockfd, result, sizeof(result)) == -1) {
+        fprintf(stderr, "ERROR: failed to read\n");
+        ret = -1;
+        close(sockfd);
+    }
+    syslog(LOG_WARNING, "@@ result: %s", result);
 
-    // printf("Server: %s\n", buff);
+    for(int i=0; i<(batch->count); i++) {
+//        del = 0;
+        if(result[i]=='0') {
+//            dp_packet_delete(batch->packets[i]);
+//            del++;
+//             この消し方はまずい(segfault)
+        }
+    }
+//    batch->count -= del;
 
     closelog();
-
+ret = 1; // バッチごと落とさせてみる
     return ret;
 }
 
@@ -5547,8 +5559,9 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
 
     error = netdev_rxq_recv(rxq->rx, &batch, qlen_p);
     if (!error) {
-        send_with_tcp(&batch);
-
+        error = send_with_tcp(&batch);
+    }
+    if (!error) {
         /* At least one packet received. */
         *recirc_depth_get() = 0;
         pmd_thread_ctx_time_update(pmd);
