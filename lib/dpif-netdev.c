@@ -5422,7 +5422,7 @@ connect_socket(void)
     // char               buff[256];
     // size_t             len;
     int                ret = -1;
-    char*              address = "192.168.128.1";
+    char*              address = "192.168.123.76";
     // char*              message = "check one two";
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -5465,53 +5465,71 @@ send_with_tcp(struct dp_packet_batch *batch)
 //    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
 
 
-    // size of batch
-    size = sizeof(*batch);
+//    // size of batch
+//    size = sizeof(*batch);
+//    if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
+//        fprintf(stderr, "ERROR: failed to write\n");
+//        ret = -1;
+//        close(sockfd);
+//    }
+//
+//    // batch
+//    if (write(sockfd, batch, size) != size) {
+//        fprintf(stderr, "ERROR: failed to write\n");
+//        ret = -1;
+//        close(sockfd);
+//    }
+
+    void *packet_data = dp_packet_data(batch->packets[0]);
+
+    // size of packet
+    size = dp_packet_size(batch->packets[0]);
     if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
         close(sockfd);
     }
 
-    // batch
-    if (write(sockfd, batch, size) != size) {
+    // packet
+    if (write(sockfd, packet_data, size) != size) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
         close(sockfd);
     }
 
-    // how many packets
-    if (write(sockfd, &(batch->count), sizeof(size_t)) != sizeof(size_t)) {
-        fprintf(stderr, "ERROR: failed to write\n");
-        ret = -1;
-        close(sockfd);
-    }
-
-    // packets
-    for(int i=0; i<(batch->count); i++) {
-
-        void *packet_data = dp_packet_data(batch->packets[i]);
-
-        // size of packet
-        size = dp_packet_size(batch->packets[i]);
-        if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
-            fprintf(stderr, "ERROR: failed to write\n");
-            ret = -1;
-            close(sockfd);
-        }
-
-        // packet
-//        if (write(sockfd, batch->packets[i], size) != size) {
-        if (write(sockfd, packet_data, size) != size) {
-            fprintf(stderr, "ERROR: failed to write\n");
-            ret = -1;
-            close(sockfd);
-        }
-    }
+//    // how many packets
+//    if (write(sockfd, &(batch->count), sizeof(size_t)) != sizeof(size_t)) {
+//        fprintf(stderr, "ERROR: failed to write\n");
+//        ret = -1;
+//        close(sockfd);
+//    }
+//
+//    // packets
+//    for(int i=0; i<(batch->count); i++) {
+//
+//        void *packet_data = dp_packet_data(batch->packets[i]);
+//
+//        // size of packet
+//        size = dp_packet_size(batch->packets[i]);
+//        if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
+//            fprintf(stderr, "ERROR: failed to write\n");
+//            ret = -1;
+//            close(sockfd);
+//        }
+//
+//        // packet
+////        if (write(sockfd, batch->packets[i], size) != size) {
+//        if (write(sockfd, packet_data, size) != size) {
+//            fprintf(stderr, "ERROR: failed to write\n");
+//            ret = -1;
+//            close(sockfd);
+//        }
+//    }
 
     // get status
     memset(result, 0, sizeof(result));
-    if (read(sockfd, result, sizeof(result)) == -1) {
+//    if (read(sockfd, result, sizeof(result)) == -1) {
+    if (read(sockfd, result, 1) == -1) {
         fprintf(stderr, "ERROR: failed to read\n");
         ret = -1;
         close(sockfd);
