@@ -5458,27 +5458,7 @@ send_with_tcp(struct dp_packet_batch *batch)
 {
     int ret = 0;
     int size;
-//    int del = 0;
-    char result[NETDEV_MAX_BURST+1]; // pass = 1, drop = 0. include null char
-
-//    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-//    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
-
-
-//    // size of batch
-//    size = sizeof(*batch);
-//    if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
-//        fprintf(stderr, "ERROR: failed to write\n");
-//        ret = -1;
-//        close(sockfd);
-//    }
-//
-//    // batch
-//    if (write(sockfd, batch, size) != size) {
-//        fprintf(stderr, "ERROR: failed to write\n");
-//        ret = -1;
-//        close(sockfd);
-//    }
+    char result[2]; // pass = 1, drop = 0. include null char
 
     void *packet_data = dp_packet_data(batch->packets[0]);
 
@@ -5497,57 +5477,28 @@ send_with_tcp(struct dp_packet_batch *batch)
         close(sockfd);
     }
 
-//    // how many packets
-//    if (write(sockfd, &(batch->count), sizeof(size_t)) != sizeof(size_t)) {
-//        fprintf(stderr, "ERROR: failed to write\n");
-//        ret = -1;
-//        close(sockfd);
-//    }
-//
-//    // packets
-//    for(int i=0; i<(batch->count); i++) {
-//
-//        void *packet_data = dp_packet_data(batch->packets[i]);
-//
-//        // size of packet
-//        size = dp_packet_size(batch->packets[i]);
-//        if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
-//            fprintf(stderr, "ERROR: failed to write\n");
-//            ret = -1;
-//            close(sockfd);
-//        }
-//
-//        // packet
-////        if (write(sockfd, batch->packets[i], size) != size) {
-//        if (write(sockfd, packet_data, size) != size) {
-//            fprintf(stderr, "ERROR: failed to write\n");
-//            ret = -1;
-//            close(sockfd);
-//        }
-//    }
-
     // get status
     memset(result, 0, sizeof(result));
-//    if (read(sockfd, result, sizeof(result)) == -1) {
-    if (read(sockfd, result, 1) == -1) {
+    if (read(sockfd, result, sizeof(result)) != 2) {
         fprintf(stderr, "ERROR: failed to read\n");
         ret = -1;
         close(sockfd);
     }
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     syslog(LOG_WARNING, "@@ result: %s", result);
 
-    for(int i=0; i<(batch->count); i++) {
-//        del = 0;
-        if(result[i]=='0') {
-//            dp_packet_delete(batch->packets[i]);
-//            del++;
-//             この消し方はまずい(segfault)
-        }
+    syslog(LOG_WARNING, "@@ result ret: %d", ret);
+    if (ret == -1){
+        ;
+    }else if(memcmp(result, "1\0", 2)==0) { // pass
+        ret = 0;
+        syslog(LOG_WARNING, "@@ result pass");
+    }else {
+        ret = 1;
+        syslog(LOG_WARNING, "@@ result drop");
     }
-//    batch->count -= del;
+    closelog();
 
-//    closelog();
-    ret = 0; // バッチごと落とさせてみる
     return ret;
 }
 

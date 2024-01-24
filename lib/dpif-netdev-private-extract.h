@@ -43,7 +43,7 @@ typedef uint32_t (*miniflow_extract_func)(struct dp_packet_batch *batch,
 
 
 /* The function pointer miniflow_extract_func depends on batch size. */
-BUILD_ASSERT_DECL(NETDEV_MAX_BURST == 32);
+BUILD_ASSERT_DECL(NETDEV_MAX_BURST == 1);
 
 /* Assert if there is flow map units change. */
 BUILD_ASSERT_DECL(FLOWMAP_UNITS == 2);
