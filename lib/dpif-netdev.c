@@ -5457,21 +5457,46 @@ int
 send_with_tcp(struct dp_packet_batch *batch)
 {
     int ret = 0;
-    int size;
+    uint64_t size;
     char result[2]; // pass = 1, drop = 0. include null char
 
-    void *packet_data = dp_packet_data(batch->packets[0]);
+    // struct dp_packet *packet_data = dp_packet_data(batch->packets[0]);
+    struct dp_packet *packet_data = batch->packets[0];
 
-    // size of packet
-    size = dp_packet_size(batch->packets[0]);
-    if (write(sockfd, &size, sizeof(int)) != sizeof(int)) {
+    struct dp_packet_p4 dp_packet2;
+    dp_packet2.allocated_ =	packet_data->allocated_;
+    dp_packet2.data_ofs =	packet_data->data_ofs;
+    dp_packet2.size_ =	packet_data->size_;
+    dp_packet2.ol_flags =	packet_data->ol_flags;
+    dp_packet2.rss_hash =	packet_data->rss_hash;
+    dp_packet2.flow_mark =	packet_data->flow_mark;
+    dp_packet2.l2_pad_size =	packet_data->allocated_;
+    dp_packet2.l2_5_ofs =	packet_data->l2_5_ofs;
+    dp_packet2.l3_ofs =	packet_data->l3_ofs;
+    dp_packet2.l4_ofs =	packet_data->l4_ofs;
+    dp_packet2.cutlen =	packet_data->cutlen;
+    dp_packet2.packet_type =	packet_data->packet_type;
+    dp_packet2.csum_start =	packet_data->csum_start;
+    dp_packet2.csum_offset =	packet_data->csum_offset;
+
+
+    // size of dp_packet2
+    size = sizeof(dp_packet2);
+    // if (write(sockfd, &size, sizeof(uint64_t)) != sizeof(uint64_t)) {
+    //     fprintf(stderr, "ERROR: failed to write\n");
+    //     ret = -1;
+    //     close(sockfd);
+    // }
+
+    // dp_packet2
+    if (write(sockfd, &dp_packet2, size) != size) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
         close(sockfd);
     }
 
     // packet
-    if (write(sockfd, packet_data, size) != size) {
+    if (write(sockfd, packet_data->base_, packet_data->allocated_) != packet_data->allocated_) {
         fprintf(stderr, "ERROR: failed to write\n");
         ret = -1;
         close(sockfd);
