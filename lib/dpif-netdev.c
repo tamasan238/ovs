@@ -5457,70 +5457,72 @@ int
 send_with_tcp(struct dp_packet_batch *batch)
 {
     int ret = 0;
-    uint64_t size;
+    uint64_t size = sizeof(struct dp_packet_p4);
     char result[2]; // pass = 1, drop = 0. include null char
 
     // struct dp_packet *packet_data = dp_packet_data(batch->packets[0]);
     struct dp_packet *packet_data = batch->packets[0];
 
     struct dp_packet_p4 dp_packet2;
-    dp_packet2.allocated_ =	packet_data->allocated_;
-    dp_packet2.data_ofs =	packet_data->data_ofs;
-    dp_packet2.size_ =	packet_data->size_;
-    dp_packet2.ol_flags =	packet_data->ol_flags;
-    dp_packet2.rss_hash =	packet_data->rss_hash;
-    dp_packet2.flow_mark =	packet_data->flow_mark;
-    dp_packet2.l2_pad_size =	packet_data->allocated_;
-    dp_packet2.l2_5_ofs =	packet_data->l2_5_ofs;
-    dp_packet2.l3_ofs =	packet_data->l3_ofs;
-    dp_packet2.l4_ofs =	packet_data->l4_ofs;
-    dp_packet2.cutlen =	packet_data->cutlen;
-    dp_packet2.packet_type =	packet_data->packet_type;
-    dp_packet2.csum_start =	packet_data->csum_start;
-    dp_packet2.csum_offset =	packet_data->csum_offset;
-
-
-    // size of dp_packet2
-    size = sizeof(dp_packet2);
-    // if (write(sockfd, &size, sizeof(uint64_t)) != sizeof(uint64_t)) {
-    //     fprintf(stderr, "ERROR: failed to write\n");
-    //     ret = -1;
-    //     close(sockfd);
-    // }
+    dp_packet2.base_ = NULL;
+    dp_packet2.allocated_ = packet_data->allocated_;
+    dp_packet2.data_ofs = packet_data->data_ofs;
+    dp_packet2.size_ = packet_data->size_;
+    dp_packet2.ol_flags = packet_data->ol_flags;
+    dp_packet2.rss_hash = packet_data->rss_hash;
+    dp_packet2.flow_mark = packet_data->flow_mark;
+    dp_packet2.source = packet_data->source;
+    dp_packet2.l2_pad_size = packet_data->l2_pad_size;
+    dp_packet2.l2_5_ofs = packet_data->l2_5_ofs;
+    dp_packet2.l3_ofs = packet_data->l3_ofs;
+    dp_packet2.l4_ofs = packet_data->l4_ofs;
+    dp_packet2.cutlen = packet_data->cutlen;
+    dp_packet2.packet_type = packet_data->packet_type;
+    dp_packet2.csum_start = packet_data->csum_start;
+    dp_packet2.csum_offset = packet_data->csum_offset;
 
     // dp_packet2
     if (write(sockfd, &dp_packet2, size) != size) {
-        fprintf(stderr, "ERROR: failed to write\n");
+        fprintf(stderr, "ERROR: failed to write | dp_packet2\n");
+        syslog(LOG_WARNING, "@@ ERROR: failed to write dp_packet2");
         ret = -1;
         close(sockfd);
     }
+    syslog(LOG_WARNING, "@@ wrote dp_packet2");
 
     // packet
-    if (write(sockfd, packet_data->base_, packet_data->allocated_) != packet_data->allocated_) {
-        fprintf(stderr, "ERROR: failed to write\n");
+    syslog(LOG_WARNING, "@@ base_: %p", dp_packet2.base_);
+    syslog(LOG_WARNING, "@@ alloc: %d", dp_packet2.allocated_);
+    if (write(sockfd, packet_data->base_, dp_packet2.allocated_) != dp_packet2.allocated_) {
+        fprintf(stderr, "ERROR: failed to write | packet\n");
+        syslog(LOG_WARNING, "@@ ERROR: failed to write packet");
         ret = -1;
         close(sockfd);
     }
+    syslog(LOG_WARNING, "@@ wrote packet");
 
     // get status
     memset(result, 0, sizeof(result));
     if (read(sockfd, result, sizeof(result)) != 2) {
-        fprintf(stderr, "ERROR: failed to read\n");
+        fprintf(stderr, "ERROR: failed to read | result\n");
+        syslog(LOG_WARNING, "@@ ERROR: failed to read result");
         ret = -1;
         close(sockfd);
     }
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "@@ result: %s", result);
+    syslog(LOG_WARNING, "@@ result %s", result);
 
-    syslog(LOG_WARNING, "@@ result ret: %d", ret);
     if (ret == -1){
-        ;
-    }else if(memcmp(result, "1\0", 2)==0) { // pass
+        syslog(LOG_WARNING, "@@ ret is -1");
+    }else if(strcmp(result, "1")==0) { // pass
         ret = 0;
-        syslog(LOG_WARNING, "@@ result pass");
-    }else {
+        syslog(LOG_WARNING, "@@ pass");
+    }else if(strcmp(result, "0")==0){ // drop
         ret = 1;
-        syslog(LOG_WARNING, "@@ result drop");
+        syslog(LOG_WARNING, "@@ drop");
+    }else{
+        syslog(LOG_WARNING, "@@ unknown: %s", result);
+        ret = -1;
     }
     closelog();
 
@@ -5552,16 +5554,16 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     }
 
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
-    syslog(LOG_WARNING, "@ (init) error: %d", error);
+    // syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
+    // syslog(LOG_WARNING, "@ packet received");
     error = netdev_rxq_recv(rxq->rx, &batch, qlen_p);
-    syslog(LOG_WARNING, "@ (netdev_rxq_recv)error: %d", error);
+    // syslog(LOG_WARNING, "@ (netdev_rxq_recv)");
     if (!error) {
         error = send_with_tcp(&batch);
-        syslog(LOG_WARNING, "@ (send_with_tcp) error: %d", error);
+        // syslog(LOG_WARNING, "@ (send_with_tcp)");
     }
     if (!error) {
-        syslog(LOG_WARNING, "@ (next bracket)error: %d", error);
+        // syslog(LOG_WARNING, "@ (next bracket)");
         /* At least one packet received. */
         *recirc_depth_get() = 0;
         pmd_thread_ctx_time_update(pmd);
@@ -5591,7 +5593,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
 
         dp_netdev_pmd_flush_output_packets(pmd, false);
     } else {
-        syslog(LOG_WARNING, "@ (error bracket)error: %d", error);
+        // syslog(LOG_WARNING, "@ (error bracket)");
         /* Discard cycles. */
         cycle_timer_stop(&pmd->perf_stats, &timer);
         if (error != EAGAIN && error != EOPNOTSUPP) {
