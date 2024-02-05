@@ -5453,6 +5453,27 @@ connect_socket(void)
     return ret;
 }
 
+static ssize_t
+read_exact(int s, void *buf, size_t size)
+{
+    char *ptr = buf;
+    ssize_t rcvd = 0, ret;
+
+    while (rcvd < size) {
+        ret = read(s, &ptr[rcvd], size - rcvd);
+        if (ret < 0) {
+          perror("read");
+          return -1;
+        }
+        else if (ret == 0)
+          break;
+
+        rcvd += ret;
+    }
+
+    return rcvd;
+}
+
 int
 send_with_tcp(struct dp_packet_batch *batch)
 {
@@ -5484,47 +5505,47 @@ send_with_tcp(struct dp_packet_batch *batch)
     // dp_packet2
     if (write(sockfd, &dp_packet2, size) != size) {
         fprintf(stderr, "ERROR: failed to write | dp_packet2\n");
-        syslog(LOG_WARNING, "@@ ERROR: failed to write dp_packet2");
+        // syslog(LOG_WARNING, "@@ ERROR: failed to write dp_packet2");
         ret = -1;
         close(sockfd);
     }
-    syslog(LOG_WARNING, "@@ wrote dp_packet2");
+    // syslog(LOG_WARNING, "@@ wrote dp_packet2");
 
     // packet
-    syslog(LOG_WARNING, "@@ base_: %p", dp_packet2.base_);
-    syslog(LOG_WARNING, "@@ alloc: %d", dp_packet2.allocated_);
+    // syslog(LOG_WARNING, "@@ base_: %p", dp_packet2.base_);
+    // syslog(LOG_WARNING, "@@ alloc: %d", dp_packet2.allocated_);
     if (write(sockfd, packet_data->base_, dp_packet2.allocated_) != dp_packet2.allocated_) {
         fprintf(stderr, "ERROR: failed to write | packet\n");
-        syslog(LOG_WARNING, "@@ ERROR: failed to write packet");
+        // syslog(LOG_WARNING, "@@ ERROR: failed to write packet");
         ret = -1;
         close(sockfd);
     }
-    syslog(LOG_WARNING, "@@ wrote packet");
+    // syslog(LOG_WARNING, "@@ wrote packet");
 
     // get status
     memset(result, 0, sizeof(result));
-    if (read(sockfd, result, sizeof(result)) != 2) {
+    if (read_exact(sockfd, result, sizeof(result)) != 2) {
         fprintf(stderr, "ERROR: failed to read | result\n");
-        syslog(LOG_WARNING, "@@ ERROR: failed to read result");
+        // syslog(LOG_WARNING, "@@ ERROR: failed to read result");
         ret = -1;
         close(sockfd);
     }
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "@@ result %s", result);
+    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    // syslog(LOG_WARNING, "@@ result %s", result);
 
     if (ret == -1){
-        syslog(LOG_WARNING, "@@ ret is -1");
+        // syslog(LOG_WARNING, "@@ ret is -1");
     }else if(strcmp(result, "1")==0) { // pass
         ret = 0;
-        syslog(LOG_WARNING, "@@ pass");
+        // syslog(LOG_WARNING, "@@ pass");
     }else if(strcmp(result, "0")==0){ // drop
         ret = 1;
-        syslog(LOG_WARNING, "@@ drop");
+        // syslog(LOG_WARNING, "@@ drop");
     }else{
-        syslog(LOG_WARNING, "@@ unknown: %s", result);
+        // syslog(LOG_WARNING, "@@ unknown: %s", result);
         ret = -1;
     }
-    closelog();
+    // closelog();
 
     return ret;
 }
@@ -5553,7 +5574,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
         qlen_p = &rem_qlen;
     }
 
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     // syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
     // syslog(LOG_WARNING, "@ packet received");
     error = netdev_rxq_recv(rxq->rx, &batch, qlen_p);
@@ -5604,7 +5625,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
         }
     }
 
-    closelog();
+    // closelog();
 
     pmd->ctx.last_rxq = NULL;
 
