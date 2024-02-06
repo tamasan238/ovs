@@ -5422,7 +5422,7 @@ connect_socket(void)
     // char               buff[256];
     // size_t             len;
     int                ret = -1;
-    char*              address = "192.168.123.76";
+    char*              address = "192.168.122.10";
     // char*              message = "check one two";
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
