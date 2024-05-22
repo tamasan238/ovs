@@ -34,7 +34,8 @@ extern "C" {
 enum { DP_NETDEV_HEADROOM = 2 + VLAN_HEADER_LEN };
 
 int connect_socket(void);
-int send_with_tcp(struct dp_packet_batch *);
+int prepare_shm(void);
+int send_packets(struct dp_packet_batch *);
 
 bool dpif_is_netdev(const struct dpif *);
 

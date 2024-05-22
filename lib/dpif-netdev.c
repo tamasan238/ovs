@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+// #define USE_TCP
+#define USE_SHM
+
 #include <config.h>
 #include "dpif-netdev.h"
 #include "dpif-netdev-private.h"
@@ -37,7 +40,23 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <syslog.h>
+#include <sys/time.h>
+#include <sys/mman.h>
 #define PORT 11111
+#define WAIT_TIME 100
+
+#define SHM_NAME "/dev/shm/ivshmem"
+#define SHM_SIZE 1048576 // 1024 * 1024
+#define SHM_FLAG_SPACE 1024
+#define SHM_VM_INFO 0
+#define SHM_DP_PACKET2 131072 // 128 * 1024
+#define SHM_PACKET 262144 // 256 * 1024
+#define SHM_RESULT 524288 // 512 * 1024
+
+#ifdef USE_SHM
+static int fd;
+static char *shm_ptr;
+#endif
 
 #include "bitmap.h"
 #include "ccmap.h"
@@ -405,7 +424,9 @@ struct dp_offload_thread {
 static struct dp_offload_thread *dp_offload_threads;
 static void *dp_netdev_flow_offload_main(void *arg);
 
+#ifdef USE_TCP
 static int sockfd = -1;
+#endif
 
 static void
 dp_netdev_offload_init(void)
@@ -1683,12 +1704,23 @@ dpif_netdev_init(void)
     unixctl_command_register("dpif-netdev/miniflow-parser-get", "",
                              0, 0, dpif_miniflow_extract_impl_get,
                              NULL);
+
+    #ifdef USE_TCP
     if(sockfd == -1){
         if ((connect_socket()) != 0) {
             fprintf(stderr, "ERROR: Cannot open socket\n");
             return 1;
         }
     }
+    #endif
+
+    #ifdef USE_SHM
+    if ((prepare_shm()) != 0) {
+        fprintf(stderr, "ERROR: Cannot open shm\n");
+        return 1;
+    }
+    #endif
+
     return 0;
 }
 
@@ -2056,10 +2088,24 @@ dpif_netdev_close(struct dpif *dpif)
     dp_netdev_unref(dp);
     free(dpif);
 
-     if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof("shutdown")) {
-         fprintf(stderr, "ERROR: failed to write\n");
-     }
-     close(sockfd);
+    #ifdef USE_TCP
+
+    if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof("shutdown")) {
+        fprintf(stderr, "ERROR: failed to write\n");
+    }
+    close(sockfd);
+
+    #endif
+
+    #ifdef USE_SHM
+
+    // TODO: Implement shutdown logic
+
+    munmap(shm_ptr, SHM_SIZE);
+    close(fd);
+
+    #endif
+
 }
 
 static int
@@ -5415,6 +5461,7 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
+#ifdef USE_TCP
 int
 connect_socket(void)
 {
@@ -5452,6 +5499,36 @@ connect_socket(void)
 
     return ret;
 }
+#endif
+
+#ifdef USE_SHM
+
+int
+prepare_shm(void)
+{
+    fd = open(SHM_NAME, O_RDWR);
+
+    if (fd == -1) {
+        perror("shm_open");
+        exit(EXIT_FAILURE);
+    }
+
+    if (ftruncate(fd, SHM_SIZE) == -1) {
+        perror("ftruncate");
+        exit(EXIT_FAILURE);
+    }
+
+    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (shm_ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef USE_TCP
 
 static ssize_t
 read_exact(int s, void *buf, size_t size)
@@ -5474,9 +5551,15 @@ read_exact(int s, void *buf, size_t size)
     return rcvd;
 }
 
+#endif
+
 int
-send_with_tcp(struct dp_packet_batch *batch)
+send_packets(struct dp_packet_batch *batch)
 {
+    struct timeval start, end;
+    long seconds, useconds;
+    double elapsed;
+
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
     char result[2]; // pass = 1, drop = 0. include null char
@@ -5501,6 +5584,10 @@ send_with_tcp(struct dp_packet_batch *batch)
     dp_packet2.packet_type = packet_data->packet_type;
     dp_packet2.csum_start = packet_data->csum_start;
     dp_packet2.csum_offset = packet_data->csum_offset;
+
+    gettimeofday(&start, NULL);
+
+    #ifdef USE_TCP
 
     // dp_packet2
     if (write(sockfd, &dp_packet2, size) != size) {
@@ -5532,6 +5619,46 @@ send_with_tcp(struct dp_packet_batch *batch)
     }
     // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     // syslog(LOG_WARNING, "@@ result %s", result);
+
+    #endif
+
+    #ifdef USE_SHM
+
+    // dp_packet2
+    while (*(shm_ptr + SHM_DP_PACKET2) != 0) {
+        usleep(WAIT_TIME);
+    }
+    memcpy(shm_ptr+SHM_DP_PACKET2+SHM_FLAG_SPACE, &dp_packet2, size);
+    *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
+
+    // packet
+    while (*(shm_ptr + SHM_PACKET) != 0) {
+        usleep(WAIT_TIME);
+    }
+    memcpy(shm_ptr+SHM_PACKET+SHM_FLAG_SPACE, packet_data->base_, dp_packet2.allocated_);
+    *((char *)shm_ptr + SHM_PACKET) = 1;
+
+    //result
+    memset(result, 0, sizeof(result));
+    while (*(shm_ptr + SHM_RESULT) != 1) {
+        usleep(WAIT_TIME);
+    }
+    memcpy(result, shm_ptr+SHM_RESULT+SHM_FLAG_SPACE, sizeof(result));
+    *((char *)shm_ptr + SHM_RESULT) = 0;
+
+    // TODO: Implement shutdown logic
+
+    #endif
+
+    gettimeofday(&end, NULL);
+
+    seconds = end.tv_sec - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+    elapsed = seconds + useconds/1.0e6;
+
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
+    closelog();
 
     if (ret == -1){
         // syslog(LOG_WARNING, "@@ ret is -1");
@@ -5580,8 +5707,8 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     error = netdev_rxq_recv(rxq->rx, &batch, qlen_p);
     // syslog(LOG_WARNING, "@ (netdev_rxq_recv)");
     if (!error) {
-        error = send_with_tcp(&batch);
-        // syslog(LOG_WARNING, "@ (send_with_tcp)");
+        error = send_packets(&batch);
+        // syslog(LOG_WARNING, "@ (send_packets)");
     }
     if (!error) {
         // syslog(LOG_WARNING, "@ (next bracket)");
