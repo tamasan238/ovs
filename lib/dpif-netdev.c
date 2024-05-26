@@ -5524,6 +5524,10 @@ prepare_shm(void)
         exit(EXIT_FAILURE);
     }
 
+    *((char *)shm_ptr + SHM_DP_PACKET2) = 0;
+    *((char *)shm_ptr + SHM_PACKET) = 0;
+    *((char *)shm_ptr + SHM_RESULT) = 0;
+
     return 0;
 }
 #endif
@@ -5624,17 +5628,26 @@ send_packets(struct dp_packet_batch *batch)
 
     #ifdef USE_SHM
 
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+
+    syslog(LOG_WARNING, "Process started.\n");
+    
+
     // dp_packet2
     while (*(shm_ptr + SHM_DP_PACKET2) != 0) {
         usleep(WAIT_TIME);
     }
+    syslog(LOG_WARNING, "dp_packet2\n");
     memcpy(shm_ptr+SHM_DP_PACKET2+SHM_FLAG_SPACE, &dp_packet2, size);
     *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
+
+    syslog(LOG_WARNING, "SHM_DP_PACKET2: %d\n", *((char *)shm_ptr + SHM_DP_PACKET2));
 
     // packet
     while (*(shm_ptr + SHM_PACKET) != 0) {
         usleep(WAIT_TIME);
     }
+    syslog(LOG_WARNING, "packet\n");
     memcpy(shm_ptr+SHM_PACKET+SHM_FLAG_SPACE, packet_data->base_, dp_packet2.allocated_);
     *((char *)shm_ptr + SHM_PACKET) = 1;
 
@@ -5642,9 +5655,16 @@ send_packets(struct dp_packet_batch *batch)
     memset(result, 0, sizeof(result));
     while (*(shm_ptr + SHM_RESULT) != 1) {
         usleep(WAIT_TIME);
+        // syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
+        // syslog(LOG_WARNING, "waiting\n");
     }
+    syslog(LOG_WARNING, "result\n");
     memcpy(result, shm_ptr+SHM_RESULT+SHM_FLAG_SPACE, sizeof(result));
     *((char *)shm_ptr + SHM_RESULT) = 0;
+
+    syslog(LOG_WARNING, "fin\n");
+
+    closelog();
 
     // TODO: Implement shutdown logic
 
