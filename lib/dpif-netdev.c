@@ -46,12 +46,12 @@
 #define WAIT_TIME 100
 
 #define SHM_NAME "/dev/shm/ivshmem"
-#define SHM_SIZE 1048576 // 1024 * 1024
+#define SHM_SIZE 524288 // 512 * 1024
 #define SHM_FLAG_SPACE 1024
 #define SHM_VM_INFO 0
 #define SHM_DP_PACKET2 131072 // 128 * 1024
 #define SHM_PACKET 262144 // 256 * 1024
-#define SHM_RESULT 524288 // 512 * 1024
+#define SHM_RESULT 393216 // 384 * 1024
 
 #ifdef USE_SHM
 static int fd;
@@ -5513,10 +5513,10 @@ prepare_shm(void)
         exit(EXIT_FAILURE);
     }
 
-    if (ftruncate(fd, SHM_SIZE) == -1) {
-        perror("ftruncate");
-        exit(EXIT_FAILURE);
-    }
+    // if (ftruncate(fd, SHM_SIZE) == -1) {
+    //     perror("ftruncate");
+    //     exit(EXIT_FAILURE);
+    // }
 
     shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (shm_ptr == MAP_FAILED) {
@@ -5524,9 +5524,9 @@ prepare_shm(void)
         exit(EXIT_FAILURE);
     }
 
-    *((char *)shm_ptr + SHM_DP_PACKET2) = 0;
-    *((char *)shm_ptr + SHM_PACKET) = 0;
-    *((char *)shm_ptr + SHM_RESULT) = 0;
+    // *((char *)shm_ptr + SHM_DP_PACKET2) = 0;
+    // *((char *)shm_ptr + SHM_PACKET) = 0;
+    // *((char *)shm_ptr + SHM_RESULT) = 0;
 
     return 0;
 }
