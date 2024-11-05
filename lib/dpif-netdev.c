@@ -5518,15 +5518,20 @@ prepare_shm(void)
     //     exit(EXIT_FAILURE);
     // }
 
-    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 4096);
     if (shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
     }
 
-    // *((char *)shm_ptr + SHM_DP_PACKET2) = 0;
-    // *((char *)shm_ptr + SHM_PACKET) = 0;
-    // *((char *)shm_ptr + SHM_RESULT) = 0;
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    syslog(LOG_WARNING, "SHM opened.\n");
+    syslog(LOG_WARNING, "mapped to %p\n", shm_ptr);
+    closelog();
+
+    *((char *)shm_ptr + SHM_DP_PACKET2) = 0;
+    *((char *)shm_ptr + SHM_PACKET) = 0;
+    *((char *)shm_ptr + SHM_RESULT) = 0;
 
     return 0;
 }
@@ -5655,8 +5660,8 @@ send_packets(struct dp_packet_batch *batch)
     memset(result, 0, sizeof(result));
     while (*(shm_ptr + SHM_RESULT) != 1) {
         usleep(WAIT_TIME);
-        // syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
-        // syslog(LOG_WARNING, "waiting\n");
+        syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
+        syslog(LOG_WARNING, "waiting\n");
     }
     syslog(LOG_WARNING, "result\n");
     memcpy(result, shm_ptr+SHM_RESULT+SHM_FLAG_SPACE, sizeof(result));
