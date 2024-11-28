@@ -43,7 +43,7 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #define PORT 11111
-#define WAIT_TIME 100
+#define WAIT_TIME 1
 
 #define SHM_NAME "/dev/shm/ivshmem"
 #define SHM_SIZE 524288 // 512 * 1024
@@ -5469,7 +5469,7 @@ connect_socket(void)
     // char               buff[256];
     // size_t             len;
     int                ret = -1;
-    char*              address = "192.168.122.10";
+    char*              address = "192.168.123.75";
     // char*              message = "check one two";
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -5518,7 +5518,7 @@ prepare_shm(void)
     //     exit(EXIT_FAILURE);
     // }
 
-    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 4096);
+    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
@@ -5565,9 +5565,9 @@ read_exact(int s, void *buf, size_t size)
 int
 send_packets(struct dp_packet_batch *batch)
 {
-    struct timeval start, end;
-    long seconds, useconds;
-    double elapsed;
+    // struct timeval start, end;
+    // long seconds, useconds;
+    // double elapsed;
 
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
@@ -5594,7 +5594,7 @@ send_packets(struct dp_packet_batch *batch)
     dp_packet2.csum_start = packet_data->csum_start;
     dp_packet2.csum_offset = packet_data->csum_offset;
 
-    gettimeofday(&start, NULL);
+    // gettimeofday(&start, NULL);
 
     #ifdef USE_TCP
 
@@ -5633,57 +5633,61 @@ send_packets(struct dp_packet_batch *batch)
 
     #ifdef USE_SHM
 
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
 
-    syslog(LOG_WARNING, "Process started.\n");
-    
+    // syslog(LOG_WARNING, "Process started.\n");
+
+    // syslog(LOG_WARNING, "should be 0, 0, 0: ");
+    // syslog(LOG_WARNING, "%d, %d, %d\n", 
+    //     *((char *)shm_ptr + SHM_DP_PACKET2),
+    //     *((char *)shm_ptr + SHM_PACKET),
+    //     *((char *)shm_ptr + SHM_RESULT));
 
     // dp_packet2
     while (*(shm_ptr + SHM_DP_PACKET2) != 0) {
         usleep(WAIT_TIME);
     }
-    syslog(LOG_WARNING, "dp_packet2\n");
+    // syslog(LOG_WARNING, "dp_packet2\n");
     memcpy(shm_ptr+SHM_DP_PACKET2+SHM_FLAG_SPACE, &dp_packet2, size);
-    *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
-
-    syslog(LOG_WARNING, "SHM_DP_PACKET2: %d\n", *((char *)shm_ptr + SHM_DP_PACKET2));
+    // *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
 
     // packet
-    while (*(shm_ptr + SHM_PACKET) != 0) {
-        usleep(WAIT_TIME);
-    }
-    syslog(LOG_WARNING, "packet\n");
+    // while (*(shm_ptr + SHM_PACKET) != 0) {
+    //     usleep(WAIT_TIME);
+    // }
+    // syslog(LOG_WARNING, "packet\n");
     memcpy(shm_ptr+SHM_PACKET+SHM_FLAG_SPACE, packet_data->base_, dp_packet2.allocated_);
-    *((char *)shm_ptr + SHM_PACKET) = 1;
+    // *((char *)shm_ptr + SHM_PACKET) = 1;
+    *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
 
     //result
     memset(result, 0, sizeof(result));
     while (*(shm_ptr + SHM_RESULT) != 1) {
         usleep(WAIT_TIME);
-        syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
-        syslog(LOG_WARNING, "waiting\n");
+        // syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
+        // syslog(LOG_WARNING, "waiting\n");
     }
-    syslog(LOG_WARNING, "result\n");
+    // syslog(LOG_WARNING, "result\n");
     memcpy(result, shm_ptr+SHM_RESULT+SHM_FLAG_SPACE, sizeof(result));
     *((char *)shm_ptr + SHM_RESULT) = 0;
 
-    syslog(LOG_WARNING, "fin\n");
+    // syslog(LOG_WARNING, "fin\n");
 
-    closelog();
+    // closelog();
 
     // TODO: Implement shutdown logic
 
     #endif
 
-    gettimeofday(&end, NULL);
+    // gettimeofday(&end, NULL);
 
-    seconds = end.tv_sec - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-    elapsed = seconds + useconds/1.0e6;
+    // seconds = end.tv_sec - start.tv_sec;
+    // useconds = end.tv_usec - start.tv_usec;
+    // elapsed = seconds + useconds/1.0e6;
 
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
-    closelog();
+    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    // syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
+    // closelog();
 
     if (ret == -1){
         // syslog(LOG_WARNING, "@@ ret is -1");
