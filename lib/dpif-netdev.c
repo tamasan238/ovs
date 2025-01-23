@@ -5518,7 +5518,7 @@ prepare_shm(void)
     //     exit(EXIT_FAILURE);
     // }
 
-    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 4096);
+    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (shm_ptr == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
