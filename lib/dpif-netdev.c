@@ -5800,7 +5800,7 @@ send_packets(struct dp_packet_batch *batch)
         usleep(WAIT_TIME);
     }
 
-    memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, batch->count, sizeof(batch->count));
+    memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
 
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
