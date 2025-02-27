@@ -81,3 +81,4 @@ testsuite.tmp.orig
 /cxx-check
 /.idea
 /build/config.log
+.vscode/settings.json

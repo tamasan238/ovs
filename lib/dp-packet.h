@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// #define DISABLE_BATCH // you have to change dpif-netdev.c, dpif-netdev-private-extract.h  and ubpf/vm/test.c
+
 #ifndef DPBUF_H
 #define DPBUF_H 1
 
@@ -786,7 +788,13 @@ dp_packet_reset_packet(struct dp_packet *b, int off)
     dp_packet_reset_offsets(b);
 }
 
+#ifdef DISABLE_BATCH
 enum { NETDEV_MAX_BURST = 1 }; /* Maximum number packets in a batch. */
+#endif
+
+#ifndef DISABLE_BATCH
+enum { NETDEV_MAX_BURST = 32 }; /* Maximum number packets in a batch. */
+#endif
 
 struct dp_packet_batch {
     size_t count;

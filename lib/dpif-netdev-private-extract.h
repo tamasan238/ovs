@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// #define DISABLE_BATCH // you have to change dpif-netdev.c, dp-packet.h  and ubpf/vm/test.c
+
 #ifndef MFEX_AVX512_EXTRACT
 #define MFEX_AVX512_EXTRACT 1
 
@@ -43,7 +45,12 @@ typedef uint32_t (*miniflow_extract_func)(struct dp_packet_batch *batch,
 
 
 /* The function pointer miniflow_extract_func depends on batch size. */
+#ifdef DISABLE_BATCH
 BUILD_ASSERT_DECL(NETDEV_MAX_BURST == 1);
+#endif
+#ifndef DISABLE_BATCH
+BUILD_ASSERT_DECL(NETDEV_MAX_BURST == 32);
+#endif
 
 /* Assert if there is flow map units change. */
 BUILD_ASSERT_DECL(FLOWMAP_UNITS == 2);

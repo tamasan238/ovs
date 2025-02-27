@@ -17,6 +17,8 @@
 // #define USE_TCP
 #define USE_SHM
 
+// #define DISABLE_BATCH // you have to change dp-packet.h, dpif-netdev-private-extract.h and ubpf/vm/test.c
+
 #include <config.h>
 #include "dpif-netdev.h"
 #include "dpif-netdev-private.h"
@@ -45,7 +47,12 @@
 #define PORT 11111
 #define WAIT_TIME 1
 
+#ifdef USE_SHM
+
 #define SHM_NAME "/dev/shm/ivshmem"
+
+#ifdef DISABLE_BATCH
+
 #define SHM_SIZE 524288 // 512 * 1024
 #define SHM_FLAG_SPACE 1024
 #define SHM_VM_INFO 0
@@ -53,9 +60,30 @@
 #define SHM_PACKET 262144 // 256 * 1024
 #define SHM_RESULT 393216 // 384 * 1024
 
-#ifdef USE_SHM
+#endif // DISABLE_BATCH
+
+#ifndef DISABLE_BATCH // Using batch
+
+#define SHM_SIZE (8 * 1024 * 1024) // 8MB
+
+#define SHM_VM_AREA 0
+#define SHM_FLAGS_AREA (SHM_VM_AREA + 2 * 1024 * 1024) // start at 2MB
+#define SHM_OVS_AREA (SHM_FLAGS_AREA + 4*1024) // start at 2MB + 4KB
+
+#define SHM_FLAG_PACKETS SHM_FLAGS_AREA
+#define SHM_FLAG_RESULTS (SHM_FLAGS_AREA + 1)
+#define SHM_FLAG_HOW_MANY_PACKETS (SHM_FLAGS_AREA + 2)
+
+#define SHM_SIZE_DP_PACKET_2 (64 * 1024)
+#define SHM_SIZE_PACKET (64 * 1024)
+#define SHM_SIZE_RESULT (4 * 1024)
+#define SHM_SIZE_PER_PACKET (SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET + SHM_SIZE_RESULT)
+
+#endif // not DISABLE_BATCH
+
 static int fd;
 static char *shm_ptr;
+
 #endif
 
 #include "bitmap.h"
@@ -5516,14 +5544,22 @@ prepare_shm(void)
         exit(EXIT_FAILURE);
     }
 
+    #ifdef DEBUG
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     syslog(LOG_WARNING, "SHM opened.\n");
     syslog(LOG_WARNING, "mapped to %p\n", shm_ptr);
     closelog();
+    #endif
 
+    #ifdef DISABLE_BATCH
     *((char *)shm_ptr + SHM_DP_PACKET2) = 0;
-    *((char *)shm_ptr + SHM_PACKET) = 0;
     *((char *)shm_ptr + SHM_RESULT) = 0;
+    #endif
+
+    #ifndef DISABLE_BATCH
+    *((char *)shm_ptr + SHM_FLAG_PACKETS) = 0;
+    *((char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+    #endif
 
     return 0;
 }
@@ -5553,6 +5589,8 @@ read_exact(int s, void *buf, size_t size)
 }
 
 #endif
+
+#ifdef DISABLE_BATCH
 
 int
 send_packets(struct dp_packet_batch *batch)
@@ -5700,7 +5738,6 @@ send_packets(struct dp_packet_batch *batch)
 
     #endif // USE_SHM
 
-
     #ifdef DEBUG
     gettimeofday(&end, NULL);
 
@@ -5738,6 +5775,103 @@ send_packets(struct dp_packet_batch *batch)
     
     return ret;
 }
+
+#endif // DISABLE_BATCH
+
+
+#ifndef DISABLE_BATCH // Using batch process
+
+#ifdef USE_SHM
+
+int
+send_packets(struct dp_packet_batch *batch)
+{
+    
+    int ret = 0;
+    uint64_t size = sizeof(struct dp_packet_p4);
+    char result[32][2]; // pass = 1, drop = 0. include null char
+
+    // struct dp_packet *packet_data = dp_packet_data(batch->packets[0]);
+    struct dp_packet *packet_data;
+    struct dp_packet_p4 dp_packet2;
+    dp_packet2.base_ = NULL;
+
+    while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
+        usleep(WAIT_TIME);
+    }
+
+    memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, batch->count, sizeof(batch->count));
+
+    for (int packets = 0; packets < batch->count; packets++){
+        packet_data = batch->packets[packets];
+
+        dp_packet2.allocated_ = packet_data->allocated_;
+        dp_packet2.data_ofs = packet_data->data_ofs;
+        dp_packet2.size_ = packet_data->size_;
+        dp_packet2.ol_flags = packet_data->ol_flags;
+        dp_packet2.rss_hash = packet_data->rss_hash;
+        dp_packet2.flow_mark = packet_data->flow_mark;
+        dp_packet2.source = packet_data->source;
+        dp_packet2.l2_pad_size = packet_data->l2_pad_size;
+        dp_packet2.l2_5_ofs = packet_data->l2_5_ofs;
+        dp_packet2.l3_ofs = packet_data->l3_ofs;
+        dp_packet2.l4_ofs = packet_data->l4_ofs;
+        dp_packet2.cutlen = packet_data->cutlen;
+        dp_packet2.packet_type = packet_data->packet_type;
+        dp_packet2.csum_start = packet_data->csum_start;
+        dp_packet2.csum_offset = packet_data->csum_offset;
+
+        // dp_packet2
+        memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET), 
+            0, SHM_SIZE_DP_PACKET_2);
+        memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET), 
+            &dp_packet2, size);
+        
+        // packet
+        memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+            SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
+        memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+            SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
+    }
+
+    *((char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
+
+    // result
+    
+    for (int packets = 0; packets < batch->count; packets++){
+        memset(result[packets], 0, sizeof(result));
+    }
+    
+    while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
+        usleep(WAIT_TIME);
+    }
+
+    for (int packets = 0; packets < batch->count; packets++){
+        memset(result[packets], 0, sizeof(result[0]));
+        memcpy(result[packets], shm_ptr+SHM_OVS_AREA+
+            (packets*SHM_SIZE_PER_PACKET)+SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET, 
+            sizeof(result));
+    }
+    *((char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+    
+    // TODO: Implement shutdown logic
+
+    // TODO: Implement read result[1-...]
+
+    if (ret == -1){
+    }else if(strcmp(result[0], "1")==0) { // pass
+        ret = 0;
+    }else if(strcmp(result[0], "0")==0){ // drop
+        ret = 1;
+    }else{
+        ret = -1;
+    }
+    
+    return ret;
+}
+
+#endif // USE_SHM
+#endif // not DISABLE_BATCH
 
 static int
 dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
