@@ -5466,11 +5466,8 @@ int
 connect_socket(void)
 {
     struct sockaddr_in servAddr;
-    // char               buff[256];
-    // size_t             len;
     int                ret = -1;
     char*              address = "192.168.123.75";
-    // char*              message = "check one two";
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         fprintf(stderr, "ERROR: failed to create the socket\n");
@@ -5512,11 +5509,6 @@ prepare_shm(void)
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
-
-    // if (ftruncate(fd, SHM_SIZE) == -1) {
-    //     perror("ftruncate");
-    //     exit(EXIT_FAILURE);
-    // }
 
     shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (shm_ptr == MAP_FAILED) {
@@ -5565,10 +5557,15 @@ read_exact(int s, void *buf, size_t size)
 int
 send_packets(struct dp_packet_batch *batch)
 {
-    // struct timeval start, end;
-    // long seconds, useconds;
-    // double elapsed;
+    #ifdef DEBUG
+    struct timeval start, end;
+    long seconds, useconds;
+    double elapsed;
 
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    gettimeofday(&start, NULL);
+    #endif
+    
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
     char result[2]; // pass = 1, drop = 0. include null char
@@ -5594,48 +5591,61 @@ send_packets(struct dp_packet_batch *batch)
     dp_packet2.csum_start = packet_data->csum_start;
     dp_packet2.csum_offset = packet_data->csum_offset;
 
-    // gettimeofday(&start, NULL);
-
     #ifdef USE_TCP
 
     // dp_packet2
     if (write(sockfd, &dp_packet2, size) != size) {
         fprintf(stderr, "ERROR: failed to write | dp_packet2\n");
-        // syslog(LOG_WARNING, "@@ ERROR: failed to write dp_packet2");
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "@@ ERROR: failed to write dp_packet2");
+        #endif
         ret = -1;
         close(sockfd);
     }
-    // syslog(LOG_WARNING, "@@ wrote dp_packet2");
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "@@ wrote dp_packet2");
+    #endif
 
     // packet
-    // syslog(LOG_WARNING, "@@ base_: %p", dp_packet2.base_);
-    // syslog(LOG_WARNING, "@@ alloc: %d", dp_packet2.allocated_);
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "@@ base_: %p", dp_packet2.base_);
+    syslog(LOG_WARNING, "@@ alloc: %d", dp_packet2.allocated_);
+    #endif
+    
     if (write(sockfd, packet_data->base_, dp_packet2.allocated_) != dp_packet2.allocated_) {
         fprintf(stderr, "ERROR: failed to write | packet\n");
-        // syslog(LOG_WARNING, "@@ ERROR: failed to write packet");
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "@@ ERROR: failed to write packet");
+        #endif
         ret = -1;
         close(sockfd);
     }
-    // syslog(LOG_WARNING, "@@ wrote packet");
+
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "@@ wrote packet");
+    #endif
 
     // get status
     memset(result, 0, sizeof(result));
     if (read_exact(sockfd, result, sizeof(result)) != 2) {
         fprintf(stderr, "ERROR: failed to read | result\n");
-        // syslog(LOG_WARNING, "@@ ERROR: failed to read result");
+
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "@@ ERROR: failed to read result");
+        #endif
+
         ret = -1;
         close(sockfd);
     }
-    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    // syslog(LOG_WARNING, "@@ result %s", result);
-
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "@@ result %s", result);
     #endif
+
+    #endif // USE_TCP
 
     #ifdef USE_SHM
 
     #ifdef DEBUG
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-
     syslog(LOG_WARNING, "Process started.\n");
 
     syslog(LOG_WARNING, "should be 0, 0, 0: ");
@@ -5753,17 +5763,27 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
         qlen_p = &rem_qlen;
     }
 
-    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    // syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
-    // syslog(LOG_WARNING, "@ packet received");
+    #ifdef DEBUG_RXQ
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    syslog(LOG_WARNING, "@@@@@@@@@@@@@@@@@@@@@@@");
+    syslog(LOG_WARNING, "@ packet received");
+    #endif
+
     error = netdev_rxq_recv(rxq->rx, &batch, qlen_p);
-    // syslog(LOG_WARNING, "@ (netdev_rxq_recv)");
+    #ifdef DEBUG_RXQ
+    syslog(LOG_WARNING, "@ (netdev_rxq_recv)");
+    #endif
+
     if (!error) {
         error = send_packets(&batch);
-        // syslog(LOG_WARNING, "@ (send_packets)");
+        #ifdef DEBUG_RXQ
+        syslog(LOG_WARNING, "@ (send_packets)");
+        #endif
     }
     if (!error) {
-        // syslog(LOG_WARNING, "@ (next bracket)");
+        #ifdef DEBUG_RXQ
+        syslog(LOG_WARNING, "@ (next bracket)");
+        #endif
         /* At least one packet received. */
         *recirc_depth_get() = 0;
         pmd_thread_ctx_time_update(pmd);
@@ -5793,7 +5813,9 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
 
         dp_netdev_pmd_flush_output_packets(pmd, false);
     } else {
-        // syslog(LOG_WARNING, "@ (error bracket)");
+        #ifdef DEBUG_RXQ
+        syslog(LOG_WARNING, "@ (error bracket)");
+        #endif
         /* Discard cycles. */
         cycle_timer_stop(&pmd->perf_stats, &timer);
         if (error != EAGAIN && error != EOPNOTSUPP) {
@@ -5803,8 +5825,9 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
                     netdev_rxq_get_name(rxq->rx), ovs_strerror(error));
         }
     }
-
-    // closelog();
+    #ifdef DEBUG_RXQ
+    closelog();
+    #endif
 
     pmd->ctx.last_rxq = NULL;
 
