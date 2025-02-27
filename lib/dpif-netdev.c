@@ -5633,76 +5633,99 @@ send_packets(struct dp_packet_batch *batch)
 
     #ifdef USE_SHM
 
-    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    #ifdef DEBUG
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
 
-    // syslog(LOG_WARNING, "Process started.\n");
+    syslog(LOG_WARNING, "Process started.\n");
 
-    // syslog(LOG_WARNING, "should be 0, 0, 0: ");
-    // syslog(LOG_WARNING, "%d, %d, %d\n", 
-    //     *((char *)shm_ptr + SHM_DP_PACKET2),
-    //     *((char *)shm_ptr + SHM_PACKET),
-    //     *((char *)shm_ptr + SHM_RESULT));
+    syslog(LOG_WARNING, "should be 0, 0, 0: ");
+    syslog(LOG_WARNING, "%d, %d, %d\n", 
+        *((char *)shm_ptr + SHM_DP_PACKET2),
+        *((char *)shm_ptr + SHM_PACKET),
+        *((char *)shm_ptr + SHM_RESULT));
+    #endif
 
     // dp_packet2
     while (*(shm_ptr + SHM_DP_PACKET2) != 0) {
         usleep(WAIT_TIME);
     }
-    // syslog(LOG_WARNING, "dp_packet2\n");
+
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "dp_packet2\n");
+    #endif
+
     memcpy(shm_ptr+SHM_DP_PACKET2+SHM_FLAG_SPACE, &dp_packet2, size);
-    // *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
 
     // packet
-    // while (*(shm_ptr + SHM_PACKET) != 0) {
-    //     usleep(WAIT_TIME);
-    // }
-    // syslog(LOG_WARNING, "packet\n");
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "packet2\n");
+    #endif
+
     memcpy(shm_ptr+SHM_PACKET+SHM_FLAG_SPACE, packet_data->base_, dp_packet2.allocated_);
-    // *((char *)shm_ptr + SHM_PACKET) = 1;
     *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
 
     //result
     memset(result, 0, sizeof(result));
     while (*(shm_ptr + SHM_RESULT) != 1) {
         usleep(WAIT_TIME);
-        // syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
-        // syslog(LOG_WARNING, "waiting\n");
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "dp_packet2\n");
+        syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
+        syslog(LOG_WARNING, "waiting\n");
+        #endif
     }
-    // syslog(LOG_WARNING, "result\n");
+
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "result\n");
+    #endif
+
     memcpy(result, shm_ptr+SHM_RESULT+SHM_FLAG_SPACE, sizeof(result));
     *((char *)shm_ptr + SHM_RESULT) = 0;
 
-    // syslog(LOG_WARNING, "fin\n");
-
-    // closelog();
-
+    #ifdef DEBUG
+    syslog(LOG_WARNING, "fin\n");
+    #endif
+    
     // TODO: Implement shutdown logic
 
+    #endif // USE_SHM
+
+
+    #ifdef DEBUG
+    gettimeofday(&end, NULL);
+
+    seconds = end.tv_sec - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+    elapsed = seconds + useconds/1.0e6;
+
+    syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
     #endif
 
-    // gettimeofday(&end, NULL);
-
-    // seconds = end.tv_sec - start.tv_sec;
-    // useconds = end.tv_usec - start.tv_usec;
-    // elapsed = seconds + useconds/1.0e6;
-
-    // openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    // syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
-    // closelog();
-
     if (ret == -1){
-        // syslog(LOG_WARNING, "@@ ret is -1");
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "@@ ret is -1");
+        #endif
     }else if(strcmp(result, "1")==0) { // pass
         ret = 0;
-        // syslog(LOG_WARNING, "@@ pass");
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "@@ pass");
+        #endif
     }else if(strcmp(result, "0")==0){ // drop
         ret = 1;
-        // syslog(LOG_WARNING, "@@ drop");
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "@@ drop");
+        #endif
     }else{
-        // syslog(LOG_WARNING, "@@ unknown: %s", result);
         ret = -1;
+        #ifdef DEBUG
+        syslog(LOG_WARNING, "@@ unknown: %s", result);
+        #endif
     }
-    // closelog();
 
+    #ifdef DEBUG
+    closelog();
+    #endif
+    
     return ret;
 }
 
