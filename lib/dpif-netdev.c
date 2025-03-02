@@ -5834,13 +5834,9 @@ send_packets(struct dp_packet_batch *batch)
             SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
     }
 
-    *((char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
+    *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
 
     // result
-    
-    for (int packets = 0; packets < batch->count; packets++){
-        memset(result[packets], 0, sizeof(result));
-    }
     
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
@@ -5850,9 +5846,9 @@ send_packets(struct dp_packet_batch *batch)
         memset(result[packets], 0, sizeof(result[0]));
         memcpy(result[packets], shm_ptr+SHM_OVS_AREA+
             (packets*SHM_SIZE_PER_PACKET)+SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET, 
-            sizeof(result));
+            sizeof(result[0]));
     }
-    *((char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+    *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
     
     // TODO: Implement shutdown logic
 
