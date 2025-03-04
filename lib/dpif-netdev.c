@@ -5861,7 +5861,6 @@ send_packets(struct dp_packet_batch *batch)
     // TODO: Implement shutdown logic
 
     if (ret == -1){
-        ;
     }else if(batch->count > 0) { // pass
         ret = 0;
     }else if(batch->count == 0){ // drop
