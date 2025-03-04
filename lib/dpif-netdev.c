@@ -5789,7 +5789,7 @@ send_packets(struct dp_packet_batch *batch)
     
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
-    char result[32][2]; // pass = 1, drop = 0. include null char
+    // char result[32][2]; // pass = 1, drop = 0. include null char
 
     // struct dp_packet *packet_data = dp_packet_data(batch->packets[0]);
     struct dp_packet *packet_data;
@@ -5843,11 +5843,12 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     for (int packets = 0; packets < batch->count; packets++){
-        memset(result[packets], 0, sizeof(result[0]));
-        memcpy(result[packets], shm_ptr+SHM_OVS_AREA+
-            (packets*SHM_SIZE_PER_PACKET)+SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET, 
-            sizeof(result[0]));
-        if (strcmp(result[packets], "0")==0){ // drop
+        // memset(result[packets], 0, sizeof(result[0]));
+        // memcpy(result[packets], shm_ptr+SHM_OVS_AREA+
+        //     (packets*SHM_SIZE_PER_PACKET)+SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET, 
+        //     sizeof(result[0]));
+        if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+            SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
             // Shift packets to the left
             for (int i = packets; i < batch->count - 1; i++) {
                 batch->packets[i] = batch->packets[i + 1];
