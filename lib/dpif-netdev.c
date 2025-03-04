@@ -5789,9 +5789,7 @@ send_packets(struct dp_packet_batch *batch)
     
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
-    // char result[32][2]; // pass = 1, drop = 0. include null char
 
-    // struct dp_packet *packet_data = dp_packet_data(batch->packets[0]);
     struct dp_packet *packet_data;
     struct dp_packet_p4 dp_packet2;
     dp_packet2.base_ = NULL;
@@ -5842,11 +5840,11 @@ send_packets(struct dp_packet_batch *batch)
         usleep(WAIT_TIME);
     }
 
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     for (int packets = 0; packets < batch->count; packets++){
-        // memset(result[packets], 0, sizeof(result[0]));
-        // memcpy(result[packets], shm_ptr+SHM_OVS_AREA+
-        //     (packets*SHM_SIZE_PER_PACKET)+SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET, 
-        //     sizeof(result[0]));
+        syslog(LOG_WARNING, "@@ result: [%d][%d]", packets, *(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+        SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET));
+
         if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
             // Shift packets to the left
@@ -5858,6 +5856,7 @@ send_packets(struct dp_packet_batch *batch)
             packets--;
         }
     }
+    closelog();
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
     
     // TODO: Implement shutdown logic
