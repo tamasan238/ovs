@@ -5840,10 +5840,15 @@ send_packets(struct dp_packet_batch *batch)
         usleep(WAIT_TIME);
     }
 
+    #ifdef DEBUG_RECEIVE_RESULT
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    #endif
+
     for (int packets = 0; packets < batch->count; packets++){
+        #ifdef DEBUG_RECEIVE_RESULT
         syslog(LOG_WARNING, "@@ result: [%d][%d]", packets, *(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
         SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET));
+        #endif
 
         if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
@@ -5856,7 +5861,11 @@ send_packets(struct dp_packet_batch *batch)
             packets--;
         }
     }
+
+    #ifdef DEBUG_RECEIVE_RESULT
     closelog();
+    #endif
+    
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
     
     // TODO: Implement shutdown logic
