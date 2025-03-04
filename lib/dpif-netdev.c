@@ -5847,13 +5847,14 @@ send_packets(struct dp_packet_batch *batch)
         memcpy(result[packets], shm_ptr+SHM_OVS_AREA+
             (packets*SHM_SIZE_PER_PACKET)+SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET, 
             sizeof(result[0]));
-        if (strcmp(result[packets], "0"==0)){ // drop
+        if (strcmp(result[packets], "0")==0){ // drop
             // Shift packets to the left
             for (int i = packets; i < batch->count - 1; i++) {
                 batch->packets[i] = batch->packets[i + 1];
             }
             batch->packets[batch->count - 1] = NULL;
             batch->count--;
+            packets--;
         }
     }
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
