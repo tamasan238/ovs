@@ -47,8 +47,7 @@
 #define PORT 11111
 #define WAIT_TIME 1
 
-#define DEBUG_MEASURE
-#define DISABLE_BATCH
+// #define DEBUG_MEASURE
 
 #ifdef USE_SHM
 
