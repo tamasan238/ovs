@@ -47,6 +47,8 @@
 #define PORT 11111
 #define WAIT_TIME 1
 
+#define DEBUG_MEASURE
+
 #ifdef USE_SHM
 
 #define SHM_NAME "/dev/shm/ivshmem"
@@ -5595,7 +5597,7 @@ read_exact(int s, void *buf, size_t size)
 int
 send_packets(struct dp_packet_batch *batch)
 {
-    #ifdef DEBUG
+    #ifdef DEBUG_MEASURE
     struct timeval start, end;
     long seconds, useconds;
     double elapsed;
@@ -5738,7 +5740,7 @@ send_packets(struct dp_packet_batch *batch)
 
     #endif // USE_SHM
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MEASURE
     gettimeofday(&end, NULL);
 
     seconds = end.tv_sec - start.tv_sec;
@@ -5769,7 +5771,7 @@ send_packets(struct dp_packet_batch *batch)
         #endif
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUG_MEASURE
     closelog();
     #endif
     
@@ -5786,7 +5788,15 @@ send_packets(struct dp_packet_batch *batch)
 int
 send_packets(struct dp_packet_batch *batch)
 {
-    
+    #ifdef DEBUG_MEASURE
+    struct timeval start, end;
+    long seconds, useconds;
+    double elapsed;
+
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    gettimeofday(&start, NULL);
+    #endif
+
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
 
@@ -5865,6 +5875,16 @@ send_packets(struct dp_packet_batch *batch)
     #ifdef DEBUG_RECEIVE_RESULT
     closelog();
     #endif
+
+    #ifdef DEBUG_MEASURE
+    gettimeofday(&end, NULL);
+
+    seconds = end.tv_sec - start.tv_sec;
+    useconds = end.tv_usec - start.tv_usec;
+    elapsed = seconds + useconds/1.0e6;
+
+    syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
+    #endif
     
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
     
@@ -5878,6 +5898,10 @@ send_packets(struct dp_packet_batch *batch)
     }else{
         ret = -1;
     }
+    
+    #ifdef DEBUG_MEASURE
+    closelog();
+    #endif
     
     return ret;
 }
