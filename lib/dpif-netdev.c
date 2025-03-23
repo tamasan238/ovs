@@ -48,6 +48,7 @@
 #define WAIT_TIME 1
 
 #define DEBUG_MEASURE
+#define DISABLE_BATCH
 
 #ifdef USE_SHM
 
@@ -5898,7 +5899,7 @@ send_packets(struct dp_packet_batch *batch)
     }else{
         ret = -1;
     }
-    
+
     #ifdef DEBUG_MEASURE
     closelog();
     #endif
