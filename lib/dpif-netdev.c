@@ -48,6 +48,7 @@
 #define WAIT_TIME 1
 
 // #define DEBUG_MEASURE
+#define DEBUG_INVESTIGATION
 
 #ifdef USE_SHM
 
@@ -5810,6 +5811,11 @@ send_packets(struct dp_packet_batch *batch)
 
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
 
+    #ifdef DEBUG_INVESTIGATION
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    syslog(LOG_WARNING, "@@ Packets in batch: %d", &batch->count);
+    #endif
+
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
 
@@ -5840,6 +5846,7 @@ send_packets(struct dp_packet_batch *batch)
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
         memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
+        syslog(LOG_WARNING, "@@ Packet size: %d", dp_packet2.allocated_);
     }
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
@@ -5900,6 +5907,9 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     #ifdef DEBUG_MEASURE
+    closelog();
+    #endif
+    #ifdef DEBUG_INVESTIGATION
     closelog();
     #endif
     
