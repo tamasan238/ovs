@@ -5846,7 +5846,10 @@ send_packets(struct dp_packet_batch *batch)
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
         memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
+
+        #ifdef DEBUG_INVESTIGATION
         syslog(LOG_WARNING, "@@ Packet size: %d", dp_packet2.allocated_);
+        #endif
     }
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
