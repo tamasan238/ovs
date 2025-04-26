@@ -17,7 +17,7 @@
 // #define USE_TCP
 #define USE_SHM
 
-#define DISABLE_BATCH // you have to change dp-packet.h, dpif-netdev-private-extract.h and ubpf/vm/test.c
+// #define DISABLE_BATCH // you have to change dp-packet.h, dpif-netdev-private-extract.h and ubpf/vm/test.c
 
 #include <config.h>
 #include "dpif-netdev.h"
@@ -48,7 +48,7 @@
 #define WAIT_TIME 1
 
 // #define DEBUG_MEASURE
-#define DEBUG_INVESTIGATION
+// #define DEBUG_INVESTIGATION
 
 #ifdef USE_SHM
 
@@ -5606,7 +5606,7 @@ send_packets(struct dp_packet_batch *batch)
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     gettimeofday(&start, NULL);
     #endif
-    
+
     #ifdef DEBUG_INVESTIGATION
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     #endif
