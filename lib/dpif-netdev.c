@@ -5813,8 +5813,7 @@ send_packets(struct dp_packet_batch *batch)
 
     #ifdef DEBUG_INVESTIGATION
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    if(batch != NULL)
-        syslog(LOG_WARNING, "@@ Packets in batch: %zu", batch->count);
+    syslog(LOG_WARNING, "@@ Batch");
     #endif
 
     for (int packets = 0; packets < batch->count; packets++){
