@@ -45,7 +45,7 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 #define PORT 11111
-#define WAIT_TIME 10
+#define WAIT_TIME 50
 
 // #define DEBUG_MEASURE
 // #define DEBUG_INVESTIGATION
