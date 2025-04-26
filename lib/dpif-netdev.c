@@ -17,7 +17,7 @@
 // #define USE_TCP
 #define USE_SHM
 
-// #define DISABLE_BATCH // you have to change dp-packet.h, dpif-netdev-private-extract.h and ubpf/vm/test.c
+#define DISABLE_BATCH // you have to change dp-packet.h, dpif-netdev-private-extract.h and ubpf/vm/test.c
 
 #include <config.h>
 #include "dpif-netdev.h"
@@ -5607,6 +5607,10 @@ send_packets(struct dp_packet_batch *batch)
     gettimeofday(&start, NULL);
     #endif
     
+    #ifdef DEBUG_INVESTIGATION
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+    #endif
+    
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
     char result[2]; // pass = 1, drop = 0. include null char
@@ -5730,6 +5734,10 @@ send_packets(struct dp_packet_batch *batch)
     syslog(LOG_WARNING, "result\n");
     #endif
 
+    #ifdef DEBUG_INVESTIGATION
+    syslog(LOG_WARNING, "@@ Packet size: %d", dp_packet2.allocated_);
+    #endif
+
     memcpy(result, shm_ptr+SHM_RESULT+SHM_FLAG_SPACE, sizeof(result));
     *((char *)shm_ptr + SHM_RESULT) = 0;
 
@@ -5773,6 +5781,9 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     #ifdef DEBUG_MEASURE
+    closelog();
+    #endif
+    #ifdef DEBUG_INVESTIGATION
     closelog();
     #endif
     
