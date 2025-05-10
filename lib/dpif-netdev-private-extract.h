@@ -49,7 +49,7 @@ typedef uint32_t (*miniflow_extract_func)(struct dp_packet_batch *batch,
 BUILD_ASSERT_DECL(NETDEV_MAX_BURST == 1);
 #endif
 #ifndef DISABLE_BATCH
-BUILD_ASSERT_DECL(NETDEV_MAX_BURST == 1);
+BUILD_ASSERT_DECL(NETDEV_MAX_BURST == 32);
 #endif
 
 /* Assert if there is flow map units change. */

@@ -793,7 +793,7 @@ enum { NETDEV_MAX_BURST = 1 }; /* Maximum number packets in a batch. */
 #endif
 
 #ifndef DISABLE_BATCH
-enum { NETDEV_MAX_BURST = 1 }; /* Maximum number packets in a batch. */
+enum { NETDEV_MAX_BURST = 32 }; /* Maximum number packets in a batch. */
 #endif
 
 struct dp_packet_batch {
