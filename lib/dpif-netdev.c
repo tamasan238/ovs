@@ -5830,7 +5830,12 @@ send_packets(struct dp_packet_batch *batch)
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
 
-        dp_packet2.allocated_ = packet_data->allocated_;
+        // dp_packet2.allocated_ = packet_data->allocated_;
+        if (packet_data->allocated_ > 64) {
+            dp_packet2.allocated_ = 64;
+        } else {
+            dp_packet2.allocated_ = packet_data->allocated_;
+        }
         dp_packet2.data_ofs = packet_data->data_ofs;
         dp_packet2.size_ = packet_data->size_;
         dp_packet2.ol_flags = packet_data->ol_flags;
@@ -5855,6 +5860,7 @@ send_packets(struct dp_packet_batch *batch)
         // packet
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
+
         memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
 
