@@ -151,6 +151,9 @@ struct dp_packet {
 };
 
 struct dp_packet_p4 {
+#ifdef DPDK_NETDEV
+    struct rte_mbuf mbuf;       /* DPDK mbuf */
+#else
     void *base_;                /* First byte of allocated space. */
     uint16_t allocated_;        /* Number of bytes allocated. */
     uint16_t data_ofs;          /* First byte actually in use. */
@@ -158,6 +161,7 @@ struct dp_packet_p4 {
     uint32_t ol_flags;          /* Offloading flags. */
     uint32_t rss_hash;          /* Packet hash. */
     uint32_t flow_mark;         /* Packet flow mark. */
+#endif
     enum dp_packet_source source;  /* Source of memory allocated as 'base'. */
 
     /* All the following elements of this struct are copied in a single call
