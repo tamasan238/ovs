@@ -5528,7 +5528,7 @@ send_packets(struct dp_packet_batch *batch)
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
         #ifdef DPDK_NETDEV
-        struct rte_mbuf *m = packet_data->mbuf;
+        struct rte_mbuf *m = &packet_data->mbuf;
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
         while (m) {
