@@ -5489,7 +5489,8 @@ send_packets(struct dp_packet_batch *batch)
         packet_data = batch->packets[packets];
 
         #ifdef DPDK_NETDEV
-        dp_packet2.allocated_ = packet_data->mbuf.buf_len;
+        rte_pktmbuf_linearize(&packet_data->mbuf);
+        dp_packet2.allocated_ = packet_data->mbuf.pkt_len;
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
         dp_packet2.ol_flags = packet_data->mbuf.ol_flags;
@@ -5528,15 +5529,10 @@ send_packets(struct dp_packet_batch *batch)
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
         #ifdef DPDK_NETDEV
-        struct rte_mbuf *m = &packet_data->mbuf;
+        void *src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
-        while (m) {
-            void *src = rte_pktmbuf_mtod(m, void *);
-            memcpy(dst, src, m->data_len);
-            dst = (uint8_t *)dst + m->data_len;
-            m = m->next;
-        }
+        memcpy(dst, src, packet_data->mbuf.pkt_len);
         #else
         memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
