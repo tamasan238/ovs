@@ -40,6 +40,8 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 
+#define DPDK_NETDEV
+
 #define WAIT_TIME 1
 
 #define SHM_NAME "/dev/shm/ivshmem"
@@ -5520,12 +5522,13 @@ send_packets(struct dp_packet_batch *batch)
     syslog(LOG_WARNING, "@@ Batch");
     #endif
 
-    #define DPDK_NETDEV
-
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
 
         #ifdef DPDK_NETDEV
+        #ifdef DEBUG_INVESTIGATION
+        syslog(LOG_WARNING, "@@ TEMP_BUF_SIZE %d", TEMP_BUF_SIZE);
+        #endif
         dp_packet2.allocated_ = TEMP_BUF_SIZE;
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
