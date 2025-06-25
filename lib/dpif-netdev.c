@@ -5523,6 +5523,7 @@ send_packets(struct dp_packet_batch *batch)
 
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
+        memset(&dp_packet2, 0, sizeof(dp_packet2));
 
         #ifdef DPDK_NETDEV
         #ifdef DEBUG_INVESTIGATION
