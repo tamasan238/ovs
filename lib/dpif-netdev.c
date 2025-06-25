@@ -5499,6 +5499,16 @@ send_packets(struct dp_packet_batch *batch)
     struct dp_packet_p4 dp_packet2;
     dp_packet2.base_ = NULL;
 
+    #ifdef DPDK_NETDEV
+    #define TEMP_BUF_SIZE (1024*1024)
+    void *temp_buf;
+    temp_buf = malloc(TEMP_BUF_SIZE);
+    if(temp_buf == NULL){
+        perror("malloc for temp_buf");
+        exit(EXIT_FAILURE);
+    }
+    #endif
+
     while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
         usleep(WAIT_TIME);
     }
@@ -5552,23 +5562,14 @@ send_packets(struct dp_packet_batch *batch)
         // packet
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
-        #ifdef DPDK_NETDEV
-
-        void *dst_temp = &dp_packet2;
-        struct rte_mbuf *m = &packet_data->mbuf;
-        while (m) {
-            void *src = rte_pktmbuf_mtod(m, void *);
-            memcpy(dst_temp, src, m->data_len);
-            dst_temp = (uint8_t *)dst_temp + m->data_len;
-            m = m->next;
-        }
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
-        memcpy(dst, dst_temp, packet_data->mbuf.pkt_len);
-        
+
+        #ifdef DPDK_NETDEV
+        void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, TEMP_BUF_SIZE, temp_buf);
+        memcpy(dst, src, packet_data->mbuf.pkt_len);
         #else
-        memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-            SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
+        memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         #endif
 
         #ifdef DEBUG_INVESTIGATION
