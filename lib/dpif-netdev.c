@@ -14,9 +14,6 @@
  * limitations under the License.
  */
 
-// #define USE_TCP
-#define USE_SHM
-
 // #define DISABLE_BATCH // you have to change dp-packet.h, dpif-netdev-private-extract.h and ubpf/vm/test.c
 
 #include <config.h>
@@ -44,13 +41,11 @@
 #include <syslog.h>
 #include <sys/time.h>
 #include <sys/mman.h>
-#define PORT 11111
+
 #define WAIT_TIME 1
 
 // #define DEBUG_MEASURE
 // #define DEBUG_INVESTIGATION
-
-#ifdef USE_SHM
 
 #define SHM_NAME "/dev/shm/ivshmem"
 
@@ -86,8 +81,6 @@
 
 static int fd;
 static char *shm_ptr;
-
-#endif
 
 #include "bitmap.h"
 #include "ccmap.h"
@@ -454,10 +447,6 @@ struct dp_offload_thread {
 };
 static struct dp_offload_thread *dp_offload_threads;
 static void *dp_netdev_flow_offload_main(void *arg);
-
-#ifdef USE_TCP
-static int sockfd = -1;
-#endif
 
 static void
 dp_netdev_offload_init(void)
@@ -1736,21 +1725,10 @@ dpif_netdev_init(void)
                              0, 0, dpif_miniflow_extract_impl_get,
                              NULL);
 
-    #ifdef USE_TCP
-    if(sockfd == -1){
-        if ((connect_socket()) != 0) {
-            fprintf(stderr, "ERROR: Cannot open socket\n");
-            return 1;
-        }
-    }
-    #endif
-
-    #ifdef USE_SHM
     if ((prepare_shm()) != 0) {
         fprintf(stderr, "ERROR: Cannot open shm\n");
         return 1;
     }
-    #endif
 
     return 0;
 }
@@ -2119,24 +2097,10 @@ dpif_netdev_close(struct dpif *dpif)
     dp_netdev_unref(dp);
     free(dpif);
 
-    #ifdef USE_TCP
-
-    if (write(sockfd, "shutdown", sizeof("shutdown")) != sizeof("shutdown")) {
-        fprintf(stderr, "ERROR: failed to write\n");
-    }
-    close(sockfd);
-
-    #endif
-
-    #ifdef USE_SHM
-
     // TODO: Implement shutdown logic
 
     munmap(shm_ptr, SHM_SIZE);
     close(fd);
-
-    #endif
-
 }
 
 static int
@@ -5492,45 +5456,6 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
-#ifdef USE_TCP
-int
-connect_socket(void)
-{
-    struct sockaddr_in servAddr;
-    int                ret = -1;
-    char*              address = "192.168.123.75";
-
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        fprintf(stderr, "ERROR: failed to create the socket\n");
-        ret = -1;
-        return ret;
-    }
-
-    ret = sockfd;
-
-    memset(&servAddr, 0, sizeof(servAddr));
-
-    servAddr.sin_family = AF_INET;
-    servAddr.sin_port   = htons(PORT);
-
-    if (inet_pton(AF_INET, address, &servAddr.sin_addr) != 1) {
-        fprintf(stderr, "ERROR: invalid address\n");
-        ret = -1;
-        return ret;
-    }
-
-    if ((ret = connect(sockfd, (struct sockaddr*) &servAddr, sizeof(servAddr)))
-        == -1) {
-        fprintf(stderr, "ERROR: failed to connect\n");
-        return ret;
-    }
-
-    return ret;
-}
-#endif
-
-#ifdef USE_SHM
-
 int
 prepare_shm(void)
 {
@@ -5566,32 +5491,6 @@ prepare_shm(void)
 
     return 0;
 }
-#endif
-
-#ifdef USE_TCP
-
-static ssize_t
-read_exact(int s, void *buf, size_t size)
-{
-    char *ptr = buf;
-    ssize_t rcvd = 0, ret;
-
-    while (rcvd < size) {
-        ret = read(s, &ptr[rcvd], size - rcvd);
-        if (ret < 0) {
-          perror("read");
-          return -1;
-        }
-        else if (ret == 0)
-          break;
-
-        rcvd += ret;
-    }
-
-    return rcvd;
-}
-
-#endif
 
 #ifdef DISABLE_BATCH
 
@@ -5635,60 +5534,6 @@ send_packets(struct dp_packet_batch *batch)
     dp_packet2.packet_type = packet_data->packet_type;
     dp_packet2.csum_start = packet_data->csum_start;
     dp_packet2.csum_offset = packet_data->csum_offset;
-
-    #ifdef USE_TCP
-
-    // dp_packet2
-    if (write(sockfd, &dp_packet2, size) != size) {
-        fprintf(stderr, "ERROR: failed to write | dp_packet2\n");
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "@@ ERROR: failed to write dp_packet2");
-        #endif
-        ret = -1;
-        close(sockfd);
-    }
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "@@ wrote dp_packet2");
-    #endif
-
-    // packet
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "@@ base_: %p", dp_packet2.base_);
-    syslog(LOG_WARNING, "@@ alloc: %d", dp_packet2.allocated_);
-    #endif
-    
-    if (write(sockfd, packet_data->base_, dp_packet2.allocated_) != dp_packet2.allocated_) {
-        fprintf(stderr, "ERROR: failed to write | packet\n");
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "@@ ERROR: failed to write packet");
-        #endif
-        ret = -1;
-        close(sockfd);
-    }
-
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "@@ wrote packet");
-    #endif
-
-    // get status
-    memset(result, 0, sizeof(result));
-    if (read_exact(sockfd, result, sizeof(result)) != 2) {
-        fprintf(stderr, "ERROR: failed to read | result\n");
-
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "@@ ERROR: failed to read result");
-        #endif
-
-        ret = -1;
-        close(sockfd);
-    }
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "@@ result %s", result);
-    #endif
-
-    #endif // USE_TCP
-
-    #ifdef USE_SHM
 
     #ifdef DEBUG
     syslog(LOG_WARNING, "Process started.\n");
@@ -5747,8 +5592,6 @@ send_packets(struct dp_packet_batch *batch)
     
     // TODO: Implement shutdown logic
 
-    #endif // USE_SHM
-
     #ifdef DEBUG_MEASURE
     gettimeofday(&end, NULL);
 
@@ -5794,8 +5637,6 @@ send_packets(struct dp_packet_batch *batch)
 
 
 #ifndef DISABLE_BATCH // Using batch process
-
-#ifdef USE_SHM
 
 int
 send_packets(struct dp_packet_batch *batch)
@@ -5948,7 +5789,6 @@ send_packets(struct dp_packet_batch *batch)
     return ret;
 }
 
-#endif // USE_SHM
 #endif // not DISABLE_BATCH
 
 static int
