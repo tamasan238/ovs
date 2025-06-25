@@ -40,8 +40,6 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 
-#include <rte_mbuf.h>
-
 #define WAIT_TIME 1
 
 #define SHM_NAME "/dev/shm/ivshmem"
@@ -5521,6 +5519,8 @@ send_packets(struct dp_packet_batch *batch)
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     syslog(LOG_WARNING, "@@ Batch");
     #endif
+
+    #define DPDK_NETDEV
 
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
