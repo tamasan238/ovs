@@ -5500,7 +5500,7 @@ send_packets(struct dp_packet_batch *batch)
     dp_packet2.base_ = NULL;
 
     #ifdef DPDK_NETDEV
-    #define TEMP_BUF_SIZE (1024*1024)
+    #define TEMP_BUF_SIZE SHM_SIZE_PACKET
     void *temp_buf;
     temp_buf = malloc(TEMP_BUF_SIZE);
     if(temp_buf == NULL){
@@ -5514,7 +5514,7 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
-
+#define DEBUG_INVESTIGATION
     #ifdef DEBUG_INVESTIGATION
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     syslog(LOG_WARNING, "@@ Batch");
@@ -5524,7 +5524,7 @@ send_packets(struct dp_packet_batch *batch)
         packet_data = batch->packets[packets];
 
         #ifdef DPDK_NETDEV
-        dp_packet2.allocated_ = packet_data->mbuf.pkt_len;
+        dp_packet2.allocated_ = TEMP_BUF_SIZE;
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
         dp_packet2.ol_flags = packet_data->mbuf.ol_flags;
@@ -5566,15 +5566,20 @@ send_packets(struct dp_packet_batch *batch)
             SHM_SIZE_DP_PACKET_2;
 
         #ifdef DPDK_NETDEV
+
+        #ifdef DEBUG_INVESTIGATION
+        syslog(LOG_WARNING, "@@ packet_data->mbuf.nb_segs %d", packet_data->mbuf.nb_segs);
+        syslog(LOG_WARNING, "@@ packet_data->mbuf.pkt_len %d", packet_data->mbuf.pkt_len);
+        syslog(LOG_WARNING, "@@ dp_packet2.allocated_ %d", dp_packet2.allocated_);
+        #endif
+
+        memset(temp_buf, 0, TEMP_BUF_SIZE);
         void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, TEMP_BUF_SIZE, temp_buf);
         memcpy(dst, src, packet_data->mbuf.pkt_len);
         #else
         memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         #endif
-
-        #ifdef DEBUG_INVESTIGATION
-        syslog(LOG_WARNING, "@@ Packet size: %d", dp_packet2.allocated_);
-        #endif
+        
     }
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
