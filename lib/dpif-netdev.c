@@ -42,12 +42,7 @@
 
 #define WAIT_TIME 1
 
-// #define DEBUG_MEASURE
-// #define DEBUG_INVESTIGATION
-
 #define SHM_NAME "/dev/shm/ivshmem"
-
-
 #define SHM_SIZE (8 * 1024 * 1024) // 8MB
 
 #define SHM_VM_AREA 0
@@ -5472,15 +5467,6 @@ prepare_shm(void)
 int
 send_packets(struct dp_packet_batch *batch)
 {
-    #ifdef DEBUG_MEASURE
-    struct timeval start, end;
-    long seconds, useconds;
-    double elapsed;
-
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    gettimeofday(&start, NULL);
-    #endif
-
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
 
@@ -5561,16 +5547,7 @@ send_packets(struct dp_packet_batch *batch)
         usleep(WAIT_TIME);
     }
 
-    #ifdef DEBUG_RECEIVE_RESULT
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    #endif
-
     for (int packets = 0; packets < batch->count; packets++){
-        #ifdef DEBUG_RECEIVE_RESULT
-        syslog(LOG_WARNING, "@@ result: [%d][%d]", packets, *(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-        SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET));
-        #endif
-
         if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
             // Shift packets to the left
@@ -5582,20 +5559,6 @@ send_packets(struct dp_packet_batch *batch)
             packets--;
         }
     }
-
-    #ifdef DEBUG_RECEIVE_RESULT
-    closelog();
-    #endif
-
-    #ifdef DEBUG_MEASURE
-    gettimeofday(&end, NULL);
-
-    seconds = end.tv_sec - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-    elapsed = seconds + useconds/1.0e6;
-
-    syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
-    #endif
     
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
     
@@ -5610,9 +5573,6 @@ send_packets(struct dp_packet_batch *batch)
         ret = -1;
     }
 
-    #ifdef DEBUG_MEASURE
-    closelog();
-    #endif
     #ifdef DEBUG_INVESTIGATION
     closelog();
     #endif
