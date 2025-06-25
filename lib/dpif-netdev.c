@@ -5525,7 +5525,7 @@ send_packets(struct dp_packet_batch *batch)
         packet_data = batch->packets[packets];
         memset(&dp_packet2, 0, sizeof(dp_packet2));
 
-        #ifdef DPDK_NETDEV
+        // #ifdef DPDK_NETDEV
         dp_packet2.allocated_ = UINT16_MAX;
         syslog(LOG_WARNING, "@@ Sdp_packet2.allocated_ %d", dp_packet2.allocated_);
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
@@ -5533,19 +5533,19 @@ send_packets(struct dp_packet_batch *batch)
         dp_packet2.ol_flags = packet_data->mbuf.ol_flags;
         dp_packet2.rss_hash = packet_data->mbuf.hash.rss;
         dp_packet2.flow_mark = packet_data->mbuf.hash.fdir.hi;
-        #else
-        dp_packet2.allocated_ = packet_data->allocated_;
-        // if (packet_data->allocated_ > 64) {
-        //     dp_packet2.allocated_ = 64;
-        // } else {
-        //     dp_packet2.allocated_ = packet_data->allocated_;
-        // }
-        dp_packet2.data_ofs = packet_data->data_ofs;
-        dp_packet2.size_ = packet_data->size_;
-        dp_packet2.ol_flags = packet_data->ol_flags;
-        dp_packet2.rss_hash = packet_data->rss_hash;
-        dp_packet2.flow_mark = packet_data->flow_mark;
-        #endif
+        // #else
+        // dp_packet2.allocated_ = packet_data->allocated_;
+        // // if (packet_data->allocated_ > 64) {
+        // //     dp_packet2.allocated_ = 64;
+        // // } else {
+        // //     dp_packet2.allocated_ = packet_data->allocated_;
+        // // }
+        // dp_packet2.data_ofs = packet_data->data_ofs;
+        // dp_packet2.size_ = packet_data->size_;
+        // dp_packet2.ol_flags = packet_data->ol_flags;
+        // dp_packet2.rss_hash = packet_data->rss_hash;
+        // dp_packet2.flow_mark = packet_data->flow_mark;
+        // #endif
         dp_packet2.source = packet_data->source;
         dp_packet2.l2_pad_size = packet_data->l2_pad_size;
         dp_packet2.l2_5_ofs = packet_data->l2_5_ofs;
@@ -5568,7 +5568,7 @@ send_packets(struct dp_packet_batch *batch)
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
 
-        #ifdef DPDK_NETDEV
+        // #ifdef DPDK_NETDEV
 
         #ifdef DEBUG_INVESTIGATION
         syslog(LOG_WARNING, "@@ packet_data->mbuf.nb_segs %d", packet_data->mbuf.nb_segs);
@@ -5579,9 +5579,9 @@ send_packets(struct dp_packet_batch *batch)
         memset(temp_buf, 0, UINT16_MAX);
         void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, UINT16_MAX, temp_buf);
         memcpy(dst, src, packet_data->mbuf.pkt_len);
-        #else
-        memcpy(dst, packet_data->base_, dp_packet2.allocated_);
-        #endif
+        // #else
+        // memcpy(dst, packet_data->base_, dp_packet2.allocated_);
+        // #endif
         
     }
 
