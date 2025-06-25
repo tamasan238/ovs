@@ -5503,7 +5503,7 @@ send_packets(struct dp_packet_batch *batch)
 
     #ifdef DPDK_NETDEV
     void *temp_buf;
-    temp_buf = malloc(SHM_SIZE_PACKET);
+    temp_buf = malloc(UINT16_MAX);
     if(temp_buf == NULL){
         perror("malloc for temp_buf");
         exit(EXIT_FAILURE);
@@ -5526,10 +5526,7 @@ send_packets(struct dp_packet_batch *batch)
         memset(&dp_packet2, 0, sizeof(dp_packet2));
 
         #ifdef DPDK_NETDEV
-        #ifdef DEBUG_INVESTIGATION
-        syslog(LOG_WARNING, "@@ SHM_SIZE_PACKET %d", SHM_SIZE_PACKET);
-        #endif
-        dp_packet2.allocated_ = SHM_SIZE_PACKET-1;
+        dp_packet2.allocated_ = UINT16_MAX;
         syslog(LOG_WARNING, "@@ Sdp_packet2.allocated_ %d", dp_packet2.allocated_);
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
@@ -5567,7 +5564,7 @@ send_packets(struct dp_packet_batch *batch)
         
         // packet
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-            SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
+            SHM_SIZE_DP_PACKET_2, 0, UINT16_MAX);
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
 
@@ -5579,8 +5576,8 @@ send_packets(struct dp_packet_batch *batch)
         syslog(LOG_WARNING, "@@ dp_packet2.allocated_ %d", dp_packet2.allocated_);
         #endif
 
-        memset(temp_buf, 0, SHM_SIZE_PACKET);
-        void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, SHM_SIZE_PACKET, temp_buf);
+        memset(temp_buf, 0, UINT16_MAX);
+        void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, UINT16_MAX, temp_buf);
         memcpy(dst, src, packet_data->mbuf.pkt_len);
         #else
         memcpy(dst, packet_data->base_, dp_packet2.allocated_);
