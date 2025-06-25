@@ -5464,6 +5464,31 @@ prepare_shm(void)
     return 0;
 }
 
+// #ifdef DPDK_NETDEV
+
+// struct dp_packet*
+// rte_mbuf_to_dp_packet(struct rte_mbuf *mbuf) {
+//     if (rte_pktmbuf_linearize(mbuf) != 0) {
+//         return NULL;
+//     }
+
+//     uint32_t pkt_len = mbuf->pkt_len;
+
+//     struct dp_packet *pkt = dp_packet_new_with_headroom(pkt_len, 0);
+//     if (!pkt) {
+//         return NULL;
+//     }
+
+//     void *src = rte_pktmbuf_mtod(mbuf, void *);
+//     memcpy(dp_packet_data(pkt), src, pkt_len);
+
+//     dp_packet_set_size(pkt, pkt_len);
+
+//     return pkt;
+// }
+
+// #endif
+
 int
 send_packets(struct dp_packet_batch *batch)
 {
@@ -5489,7 +5514,6 @@ send_packets(struct dp_packet_batch *batch)
         packet_data = batch->packets[packets];
 
         #ifdef DPDK_NETDEV
-        rte_pktmbuf_linearize(&packet_data->mbuf);
         dp_packet2.allocated_ = packet_data->mbuf.pkt_len;
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
@@ -5529,10 +5553,19 @@ send_packets(struct dp_packet_batch *batch)
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
         #ifdef DPDK_NETDEV
-        void *src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
+
+        void *dst_temp = dp_packet2;
+        struct rte_mbuf *m = packet_data->mbuf;
+        while (m) {
+            void *src = rte_pktmbuf_mtod(m, void *);
+            memcpy(dst_temp, src, m->data_len);
+            dst = (uint8_t *)dst_temp + m->data_len;
+            m = m->next;
+        }
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
-        memcpy(dst, src, packet_data->mbuf.pkt_len);
+        memcpy(dst, dst_temp, packet_data->mbuf.pkt_len);
+        
         #else
         memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
