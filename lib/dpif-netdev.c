@@ -5554,12 +5554,12 @@ send_packets(struct dp_packet_batch *batch)
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
         #ifdef DPDK_NETDEV
 
-        void *dst_temp = dp_packet2;
-        struct rte_mbuf *m = packet_data->mbuf;
+        void *dst_temp = &dp_packet2;
+        struct rte_mbuf *m = &packet_data->mbuf;
         while (m) {
             void *src = rte_pktmbuf_mtod(m, void *);
             memcpy(dst_temp, src, m->data_len);
-            dst = (uint8_t *)dst_temp + m->data_len;
+            dst_temp = (uint8_t *)dst_temp + m->data_len;
             m = m->next;
         }
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
