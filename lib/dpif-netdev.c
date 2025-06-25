@@ -5528,7 +5528,15 @@ send_packets(struct dp_packet_batch *batch)
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
         #ifdef DPDK_NETDEV
-        
+        struct rte_mbuf *m = packet_data->mbuf;
+        void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+            SHM_SIZE_DP_PACKET_2;
+        while (m) {
+            void *src = rte_pktmbuf_mtod(m, void *);
+            memcpy(dst, src, m->data_len);
+            dst = (uint8_t *)dst + m->data_len;
+            m = m->next;
+        }
         #else
         memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2, packet_data->base_, dp_packet2.allocated_);
