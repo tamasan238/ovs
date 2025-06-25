@@ -5528,7 +5528,7 @@ send_packets(struct dp_packet_batch *batch)
         #ifdef DEBUG_INVESTIGATION
         syslog(LOG_WARNING, "@@ SHM_SIZE_PACKET %d", SHM_SIZE_PACKET);
         #endif
-        dp_packet2.allocated_ = SHM_SIZE_PACKET;
+        dp_packet2.allocated_ = SHM_SIZE_PACKET-1;
         syslog(LOG_WARNING, "@@ Sdp_packet2.allocated_ %d", dp_packet2.allocated_);
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
