@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// #define DISABLE_BATCH // you have to change dpif-netdev.c, dpif-netdev-private-extract.h  and ubpf/vm/test.c
-
 #ifndef DPBUF_H
 #define DPBUF_H 1
 

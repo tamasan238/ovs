@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// #define DISABLE_BATCH // you have to change dpif-netdev.c, dp-packet.h  and ubpf/vm/test.c
-
 #ifndef MFEX_AVX512_EXTRACT
 #define MFEX_AVX512_EXTRACT 1
 

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-// #define DISABLE_BATCH // you have to change dp-packet.h, dpif-netdev-private-extract.h and ubpf/vm/test.c
-
 #include <config.h>
 #include "dpif-netdev.h"
 #include "dpif-netdev-private.h"
@@ -49,18 +47,6 @@
 
 #define SHM_NAME "/dev/shm/ivshmem"
 
-#ifdef DISABLE_BATCH
-
-#define SHM_SIZE 524288 // 512 * 1024
-#define SHM_FLAG_SPACE 1024
-#define SHM_VM_INFO 0
-#define SHM_DP_PACKET2 131072 // 128 * 1024
-#define SHM_PACKET 262144 // 256 * 1024
-#define SHM_RESULT 393216 // 384 * 1024
-
-#endif // DISABLE_BATCH
-
-#ifndef DISABLE_BATCH // Using batch
 
 #define SHM_SIZE (8 * 1024 * 1024) // 8MB
 
@@ -76,8 +62,6 @@
 #define SHM_SIZE_PACKET (64 * 1024)
 #define SHM_SIZE_RESULT (4 * 1024)
 #define SHM_SIZE_PER_PACKET (SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET + SHM_SIZE_RESULT)
-
-#endif // not DISABLE_BATCH
 
 static int fd;
 static char *shm_ptr;
@@ -5479,164 +5463,11 @@ prepare_shm(void)
     closelog();
     #endif
 
-    #ifdef DISABLE_BATCH
-    *((char *)shm_ptr + SHM_DP_PACKET2) = 0;
-    *((char *)shm_ptr + SHM_RESULT) = 0;
-    #endif
-
-    #ifndef DISABLE_BATCH
     *((char *)shm_ptr + SHM_FLAG_PACKETS) = 0;
     *((char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
-    #endif
 
     return 0;
 }
-
-#ifdef DISABLE_BATCH
-
-int
-send_packets(struct dp_packet_batch *batch)
-{
-    #ifdef DEBUG_MEASURE
-    struct timeval start, end;
-    long seconds, useconds;
-    double elapsed;
-
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    gettimeofday(&start, NULL);
-    #endif
-
-    #ifdef DEBUG_INVESTIGATION
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    #endif
-    
-    int ret = 0;
-    uint64_t size = sizeof(struct dp_packet_p4);
-    char result[2]; // pass = 1, drop = 0. include null char
-
-    // struct dp_packet *packet_data = dp_packet_data(batch->packets[0]);
-    struct dp_packet *packet_data = batch->packets[0];
-
-    struct dp_packet_p4 dp_packet2;
-    dp_packet2.base_ = NULL;
-    dp_packet2.allocated_ = packet_data->allocated_;
-    dp_packet2.data_ofs = packet_data->data_ofs;
-    dp_packet2.size_ = packet_data->size_;
-    dp_packet2.ol_flags = packet_data->ol_flags;
-    dp_packet2.rss_hash = packet_data->rss_hash;
-    dp_packet2.flow_mark = packet_data->flow_mark;
-    dp_packet2.source = packet_data->source;
-    dp_packet2.l2_pad_size = packet_data->l2_pad_size;
-    dp_packet2.l2_5_ofs = packet_data->l2_5_ofs;
-    dp_packet2.l3_ofs = packet_data->l3_ofs;
-    dp_packet2.l4_ofs = packet_data->l4_ofs;
-    dp_packet2.cutlen = packet_data->cutlen;
-    dp_packet2.packet_type = packet_data->packet_type;
-    dp_packet2.csum_start = packet_data->csum_start;
-    dp_packet2.csum_offset = packet_data->csum_offset;
-
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "Process started.\n");
-
-    syslog(LOG_WARNING, "should be 0, 0, 0: ");
-    syslog(LOG_WARNING, "%d, %d, %d\n", 
-        *((char *)shm_ptr + SHM_DP_PACKET2),
-        *((char *)shm_ptr + SHM_PACKET),
-        *((char *)shm_ptr + SHM_RESULT));
-    #endif
-
-    // dp_packet2
-    while (*(shm_ptr + SHM_DP_PACKET2) != 0) {
-        usleep(WAIT_TIME);
-    }
-
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "dp_packet2\n");
-    #endif
-
-    memcpy(shm_ptr+SHM_DP_PACKET2+SHM_FLAG_SPACE, &dp_packet2, size);
-
-    // packet
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "packet2\n");
-    #endif
-
-    memcpy(shm_ptr+SHM_PACKET+SHM_FLAG_SPACE, packet_data->base_, dp_packet2.allocated_);
-    *((char *)shm_ptr + SHM_DP_PACKET2) = 1;
-
-    //result
-    memset(result, 0, sizeof(result));
-    while (*(shm_ptr + SHM_RESULT) != 1) {
-        usleep(WAIT_TIME);
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "dp_packet2\n");
-        syslog(LOG_WARNING, "SHM_RESULT: %d\n", *(shm_ptr + SHM_RESULT));
-        syslog(LOG_WARNING, "waiting\n");
-        #endif
-    }
-
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "result\n");
-    #endif
-
-    #ifdef DEBUG_INVESTIGATION
-    syslog(LOG_WARNING, "@@ Packet size: %d", dp_packet2.allocated_);
-    #endif
-
-    memcpy(result, shm_ptr+SHM_RESULT+SHM_FLAG_SPACE, sizeof(result));
-    *((char *)shm_ptr + SHM_RESULT) = 0;
-
-    #ifdef DEBUG
-    syslog(LOG_WARNING, "fin\n");
-    #endif
-    
-    // TODO: Implement shutdown logic
-
-    #ifdef DEBUG_MEASURE
-    gettimeofday(&end, NULL);
-
-    seconds = end.tv_sec - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-    elapsed = seconds + useconds/1.0e6;
-
-    syslog(LOG_WARNING, "Elapsed: %f[sec]\n", elapsed);
-    #endif
-
-    if (ret == -1){
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "@@ ret is -1");
-        #endif
-    }else if(strcmp(result, "1")==0) { // pass
-        ret = 0;
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "@@ pass");
-        #endif
-    }else if(strcmp(result, "0")==0){ // drop
-        ret = 1;
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "@@ drop");
-        #endif
-    }else{
-        ret = -1;
-        #ifdef DEBUG
-        syslog(LOG_WARNING, "@@ unknown: %s", result);
-        #endif
-    }
-
-    #ifdef DEBUG_MEASURE
-    closelog();
-    #endif
-    #ifdef DEBUG_INVESTIGATION
-    closelog();
-    #endif
-    
-    return ret;
-}
-
-#endif // DISABLE_BATCH
-
-
-#ifndef DISABLE_BATCH // Using batch process
 
 int
 send_packets(struct dp_packet_batch *batch)
@@ -5788,8 +5619,6 @@ send_packets(struct dp_packet_batch *batch)
     
     return ret;
 }
-
-#endif // not DISABLE_BATCH
 
 static int
 dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
