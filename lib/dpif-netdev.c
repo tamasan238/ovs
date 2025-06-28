@@ -5604,7 +5604,7 @@ send_packets(struct dp_packet_batch *batch)
 
     // show_flags();
 
-    usleep(2);
+    usleep(5);
 
     // syslog(LOG_WARNING, "@@ received");
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
