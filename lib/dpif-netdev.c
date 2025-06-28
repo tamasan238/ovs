@@ -5567,15 +5567,17 @@ send_packets(struct dp_packet_batch *batch)
     }
     // show_flags();
 
-    struct timeval start, end;
-    long elapsed_us;
-    gettimeofday(&start, NULL);
+    // struct timeval start, end;
+    // long elapsed_us;
+    // gettimeofday(&start, NULL);
 
-    syslog(LOG_WARNING, "@@ sent");
+    // syslog(LOG_WARNING, "@@ sent");
 
-    gettimeofday(&end, NULL);
-    elapsed_us = (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_usec - start.tv_usec);
-    syslog(LOG_WARNING, "@@ syslog use(us): %ld", elapsed_us);
+    // gettimeofday(&end, NULL);
+    // elapsed_us = (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_usec - start.tv_usec);
+    // syslog(LOG_WARNING, "@@ syslog use(us): %ld", elapsed_us);
+
+    sleep(15);
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
 
@@ -5601,7 +5603,10 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     // show_flags();
-    syslog(LOG_WARNING, "@@ received");
+
+    sleep(15);
+    
+    // syslog(LOG_WARNING, "@@ received");
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
 
     // show_flags();
