@@ -5466,17 +5466,17 @@ prepare_shm(void)
     return 0;
 }
 
-void
-show_flags(void)
-{
-    syslog(LOG_WARNING, "@@");
-    syslog(LOG_WARNING, "@@ SHM_FLAG_PACKETS: %d",
-        *((char *)shm_ptr + SHM_FLAG_PACKETS));
-    syslog(LOG_WARNING, "@@ SHM_FLAG_RESULTS: %d",
-        *((char *)shm_ptr + SHM_FLAG_RESULTS));
-    syslog(LOG_WARNING, "@@ SHM_FLAG_HOW_MANY_PACKETS: %d",
-        *((char *)shm_ptr + SHM_FLAG_HOW_MANY_PACKETS));
-}
+// void
+// show_flags(void)
+// {
+//     syslog(LOG_WARNING, "@@");
+//     syslog(LOG_WARNING, "@@ SHM_FLAG_PACKETS: %d",
+//         *((char *)shm_ptr + SHM_FLAG_PACKETS));
+//     syslog(LOG_WARNING, "@@ SHM_FLAG_RESULTS: %d",
+//         *((char *)shm_ptr + SHM_FLAG_RESULTS));
+//     syslog(LOG_WARNING, "@@ SHM_FLAG_HOW_MANY_PACKETS: %d",
+//         *((char *)shm_ptr + SHM_FLAG_HOW_MANY_PACKETS));
+// }
 
 int
 send_packets(struct dp_packet_batch *batch)
@@ -5494,17 +5494,17 @@ send_packets(struct dp_packet_batch *batch)
     // syslog(LOG_WARNING, "@@ Batch");
     #endif
     
-    show_flags();
+    // show_flags();
     while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
         usleep(WAIT_TIME);
     }
-    show_flags();
+    // show_flags();
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
-    show_flags();
+    // show_flags();
 
-    syslog(LOG_WARNING, "@@ batch start");
+    // syslog(LOG_WARNING, "@@ batch start");
     for (int packets = 0; packets < batch->count; packets++){
-        syslog(LOG_WARNING, "@@ packet start");
+        // syslog(LOG_WARNING, "@@ packet start");
 
         packet_data = batch->packets[packets];
         memset(&dp_packet2, 0, sizeof(dp_packet2));
@@ -5564,16 +5564,16 @@ send_packets(struct dp_packet_batch *batch)
         memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         #endif
     }
-    show_flags();
-    syslog(LOG_WARNING, "@@ sent");
+    // show_flags();
+    // syslog(LOG_WARNING, "@@ sent");
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
-    show_flags();
+    // show_flags();
 
     // result
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
     }
-    show_flags();
+    // show_flags();
 
     for (int packets = 0; packets < batch->count; packets++){
         if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
@@ -5587,10 +5587,10 @@ send_packets(struct dp_packet_batch *batch)
             packets--;
         }
     }
-    show_flags();
-    syslog(LOG_WARNING, "@@ received");
+    // show_flags();
+    // syslog(LOG_WARNING, "@@ received");
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
-    show_flags();
+    // show_flags();
     
     // TODO: Implement shutdown logic
 
