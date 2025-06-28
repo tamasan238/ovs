@@ -5567,7 +5567,11 @@ send_packets(struct dp_packet_batch *batch)
     }
     // show_flags();
     // syslog(LOG_WARNING, "@@ sent");
+
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
+
+    sleep(1);
+
     // show_flags();
 
     // result
@@ -5588,9 +5592,13 @@ send_packets(struct dp_packet_batch *batch)
             packets--;
         }
     }
+
     // show_flags();
     // syslog(LOG_WARNING, "@@ received");
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+
+    sleep(1);
+    
     // show_flags();
     
     // TODO: Implement shutdown logic
