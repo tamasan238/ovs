@@ -5516,6 +5516,11 @@ send_packets(struct dp_packet_batch *batch)
 
         #ifdef DPDK_NETDEV
         dp_packet2.allocated_ = packet_data->mbuf.data_len;
+        #ifdef ONLY_FIRST_64_BYTES
+        if (packet_data->mbuf.data_len > 64) {
+            dp_packet2.allocated_ = 64;
+        }
+        #endif
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
         dp_packet2.ol_flags = packet_data->mbuf.ol_flags;
@@ -5526,8 +5531,6 @@ send_packets(struct dp_packet_batch *batch)
         #ifdef ONLY_FIRST_64_BYTES
         if (packet_data->allocated_ > 64) {
             dp_packet2.allocated_ = 64;
-        } else {
-            dp_packet2.allocated_ = packet_data->allocated_;
         }
         #endif
         dp_packet2.data_ofs = packet_data->data_ofs;
