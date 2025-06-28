@@ -5563,7 +5563,7 @@ send_packets(struct dp_packet_batch *batch)
 
         #ifdef DPDK_NETDEV
         void *src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
-        memcpy(dst, src, packet_data->mbuf.data_len); // copy only first segment
+        memcpy(dst, src, dp_packet2.allocated_); // copy only first segment
         #else
         memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         #endif
