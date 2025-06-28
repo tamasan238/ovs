@@ -5501,14 +5501,14 @@ send_packets(struct dp_packet_batch *batch)
     struct dp_packet_p4 dp_packet2;
     dp_packet2.base_ = NULL;
 
-    #ifdef DPDK_NETDEV
-    void *temp_buf;
-    temp_buf = malloc(TEMP_BUF_SIZE);
-    if(temp_buf == NULL){
-        perror("malloc for temp_buf");
-        exit(EXIT_FAILURE);
-    }
-    #endif
+    // #ifdef DPDK_NETDEV
+    // void *temp_buf;
+    // temp_buf = malloc(TEMP_BUF_SIZE);
+    // if(temp_buf == NULL){
+    //     perror("malloc for temp_buf");
+    //     exit(EXIT_FAILURE);
+    // }
+    // #endif
 
     while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
         usleep(WAIT_TIME);
@@ -5539,7 +5539,7 @@ send_packets(struct dp_packet_batch *batch)
         memset(&dp_packet2, 0, sizeof(dp_packet2));
 
         // #ifdef DPDK_NETDEV
-        dp_packet2.allocated_ = TEMP_BUF_SIZE;
+        dp_packet2.allocated_ = packet_data->mbuf.data_len;
         // syslog(LOG_WARNING, "@@ Sdp_packet2.allocated_ %d", dp_packet2.allocated_);
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
@@ -5589,7 +5589,7 @@ send_packets(struct dp_packet_batch *batch)
         // syslog(LOG_WARNING, "@@ dp_packet2.allocated_ %d", dp_packet2.allocated_);
         #endif
 
-        memset(temp_buf, 0, TEMP_BUF_SIZE);
+        // memset(temp_buf, 0, TEMP_BUF_SIZE);
         // syslog(LOG_WARNING, "@@ A");
         // void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, TEMP_BUF_SIZE, temp_buf);
         // if(src == NULL){
@@ -5601,16 +5601,15 @@ send_packets(struct dp_packet_batch *batch)
         // if(packet_data->mbuf.pkt_len > TEMP_BUF_SIZE){
         //     syslog(LOG_WARNING, "@@ pkt_len > TEMP_BUF_SIZE %d", packet_data->mbuf.pkt_len);
         // }
-        void *src;
-        if(&packet_data->mbuf.nb_segs == 1){
-            // when seg==1
-            src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
-        }else{
-            src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
-            syslog(LOG_WARNING, "@@ segs: %d", &packet_data->mbuf.nb_segs);
-            syslog(LOG_WARNING, "@@ pkt_len: %d", &packet_data->mbuf.pkt_len);
-        }
-        memcpy(dst, src, packet_data->mbuf.pkt_len);
+        void *src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
+        // if(&packet_data->mbuf.nb_segs == 1){
+        //     // when seg==1
+        // }else{
+            
+        // }
+        // memcpy(dst, src, packet_data->mbuf.pkt_len);
+        memcpy(dst, src, packet_data->mbuf.data_len); // copy only first segment
+        // memcpy(dst, src, packet_data->mbuf.pkt_len);
         // syslog(LOG_WARNING, "@@ B");
         // #else
         // memcpy(dst, packet_data->base_, dp_packet2.allocated_);
@@ -5662,10 +5661,10 @@ send_packets(struct dp_packet_batch *batch)
     }
     // syslog(LOG_WARNING, "@@ K");
 
-    #ifdef DPDK_NETDEV
-    free(temp_buf);
+    // #ifdef DPDK_NETDEV
+    // free(temp_buf);
     // syslog(LOG_WARNING, "@@ L");
-    #endif
+    // #endif
 
     #ifdef DEBUG_INVESTIGATION
     // syslog(LOG_WARNING, "@@ M");
