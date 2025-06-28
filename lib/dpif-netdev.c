@@ -5469,9 +5469,12 @@ prepare_shm(void)
 void
 show_flags(void)
 {
-    syslog(LOG_WARNING, "@@ SHM_FLAG_PACKETS: %d", SHM_FLAG_PACKETS);
-    syslog(LOG_WARNING, "@@ SHM_FLAG_RESULTS: %d", SHM_FLAG_RESULTS);
-    syslog(LOG_WARNING, "@@ SHM_FLAG_HOW_MANY_PACKETS: %d", SHM_FLAG_HOW_MANY_PACKETS);
+    syslog(LOG_WARNING, "@@ SHM_FLAG_PACKETS: %d",
+        *((char *)shm_ptr + SHM_FLAG_PACKETS));
+    syslog(LOG_WARNING, "@@ SHM_FLAG_RESULTS: %d",
+        *((char *)shm_ptr + SHM_FLAG_RESULTS));
+    syslog(LOG_WARNING, "@@ SHM_FLAG_HOW_MANY_PACKETS: %d",
+        *((char *)shm_ptr + SHM_FLAG_HOW_MANY_PACKETS));
 }
 
 int
