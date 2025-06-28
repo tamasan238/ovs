@@ -5453,6 +5453,8 @@ prepare_shm(void)
         exit(EXIT_FAILURE);
     }
 
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+
     #ifdef DEBUG
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     syslog(LOG_WARNING, "SHM opened.\n");
@@ -5490,7 +5492,6 @@ send_packets(struct dp_packet_batch *batch)
     dp_packet2.base_ = NULL;
 
     #ifdef DEBUG_INVESTIGATION
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     // syslog(LOG_WARNING, "@@ Batch");
     #endif
     
@@ -5602,10 +5603,6 @@ send_packets(struct dp_packet_batch *batch)
     }else{
         ret = -1;
     }
-
-    #ifdef DEBUG_INVESTIGATION
-    closelog();
-    #endif
     
     return ret;
 }
