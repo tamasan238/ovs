@@ -5514,6 +5514,12 @@ send_packets(struct dp_packet_batch *batch)
         usleep(WAIT_TIME);
     }
 
+    if(batch == NULL){
+        syslog(LOG_WARNING, "@@ batch == NULL");
+    }
+    if(batch->count < 1){
+        syslog(LOG_WARNING, "@@ batch->count < 1: %d", batch->count);
+    }
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
 #define DEBUG_INVESTIGATION
     #ifdef DEBUG_INVESTIGATION
@@ -5521,8 +5527,15 @@ send_packets(struct dp_packet_batch *batch)
     syslog(LOG_WARNING, "@@ Batch");
     #endif
 
+    if(batch->count * SHM_SIZE_PER_PACKET > SHM_SIZE){
+        syslog(LOG_WARNING, "@@ oversize for shm %d", batch->count);
+    }
+
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
+        if(packet_data == NULL){
+            syslog(LOG_WARNING, "@@ packet_data == NULL");
+        }
         memset(&dp_packet2, 0, sizeof(dp_packet2));
 
         // #ifdef DPDK_NETDEV
@@ -5578,6 +5591,12 @@ send_packets(struct dp_packet_batch *batch)
 
         memset(temp_buf, 0, UINT16_MAX);
         void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, UINT16_MAX, temp_buf);
+        if(src == NULL){
+            syslog(LOG_WARNING, "@@ rte_pktmbuf_read()==NULL");
+        }
+        if(packet_data->mbuf.pkt_len > UINT16_MAX){
+            syslog(LOG_WARNING, "@@ pkt_len > UINT16_MAX %d", packet_data->mbuf.pkt_len);
+        }
         memcpy(dst, src, packet_data->mbuf.pkt_len);
         // #else
         // memcpy(dst, packet_data->base_, dp_packet2.allocated_);
@@ -5588,7 +5607,6 @@ send_packets(struct dp_packet_batch *batch)
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
 
     // result
-    
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
     }
