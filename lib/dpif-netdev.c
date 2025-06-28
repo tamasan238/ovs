@@ -40,8 +40,6 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 
-#define DPDK_NETDEV
-
 #define WAIT_TIME 1
 
 #define SHM_NAME "/dev/shm/ivshmem"
@@ -59,6 +57,8 @@
 #define SHM_SIZE_PACKET (64 * 1024)
 #define SHM_SIZE_RESULT (4 * 1024)
 #define SHM_SIZE_PER_PACKET (SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET + SHM_SIZE_RESULT)
+
+#define TEMP_BUF_SIZE RTE_ETHER_MAX_JUMBO_FRAME_LEN // from rte_ether.h (0x3F00)
 
 static int fd;
 static char *shm_ptr;
@@ -5503,7 +5503,7 @@ send_packets(struct dp_packet_batch *batch)
 
     #ifdef DPDK_NETDEV
     void *temp_buf;
-    temp_buf = malloc(RTE_ETHER_MAX_JUMBO_FRAME_LEN);
+    temp_buf = malloc(TEMP_BUF_SIZE);
     if(temp_buf == NULL){
         perror("malloc for temp_buf");
         exit(EXIT_FAILURE);
@@ -5539,7 +5539,7 @@ send_packets(struct dp_packet_batch *batch)
         memset(&dp_packet2, 0, sizeof(dp_packet2));
 
         // #ifdef DPDK_NETDEV
-        dp_packet2.allocated_ = RTE_ETHER_MAX_JUMBO_FRAME_LEN;
+        dp_packet2.allocated_ = TEMP_BUF_SIZE;
         syslog(LOG_WARNING, "@@ Sdp_packet2.allocated_ %d", dp_packet2.allocated_);
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
@@ -5577,7 +5577,7 @@ send_packets(struct dp_packet_batch *batch)
         
         // packet
         memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-            SHM_SIZE_DP_PACKET_2, 0, RTE_ETHER_MAX_JUMBO_FRAME_LEN);
+            SHM_SIZE_DP_PACKET_2, 0, TEMP_BUF_SIZE);
         void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
 
@@ -5589,18 +5589,19 @@ send_packets(struct dp_packet_batch *batch)
         syslog(LOG_WARNING, "@@ dp_packet2.allocated_ %d", dp_packet2.allocated_);
         #endif
 
-        memset(temp_buf, 0, RTE_ETHER_MAX_JUMBO_FRAME_LEN);
+        memset(temp_buf, 0, TEMP_BUF_SIZE);
         syslog(LOG_WARNING, "@@ A");
-        void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, RTE_ETHER_MAX_JUMBO_FRAME_LEN, temp_buf);
-        if(src == NULL){
-            syslog(LOG_WARNING, "@@ rte_pktmbuf_read()==NULL");
-            if(&packet_data->mbuf == NULL){
-                syslog(LOG_WARNING, "@@ packet_data->mbuf==NULL");
-            }
-        }
-        if(packet_data->mbuf.pkt_len > RTE_ETHER_MAX_JUMBO_FRAME_LEN){
-            syslog(LOG_WARNING, "@@ pkt_len > RTE_ETHER_MAX_JUMBO_FRAME_LEN %d", packet_data->mbuf.pkt_len);
-        }
+        // void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, TEMP_BUF_SIZE, temp_buf);
+        // if(src == NULL){
+        //     syslog(LOG_WARNING, "@@ rte_pktmbuf_read()==NULL");
+        //     if(&packet_data->mbuf == NULL){
+        //         syslog(LOG_WARNING, "@@ packet_data->mbuf==NULL");
+        //     }
+        // }
+        // if(packet_data->mbuf.pkt_len > TEMP_BUF_SIZE){
+        //     syslog(LOG_WARNING, "@@ pkt_len > TEMP_BUF_SIZE %d", packet_data->mbuf.pkt_len);
+        // }
+        void *src = rte_pktmbuf_mtod(&packet_data->mbuf, void *); // when seg==1
         memcpy(dst, src, packet_data->mbuf.pkt_len);
         syslog(LOG_WARNING, "@@ B");
         // #else
