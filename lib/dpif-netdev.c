@@ -5590,6 +5590,7 @@ send_packets(struct dp_packet_batch *batch)
         #endif
 
         memset(temp_buf, 0, UINT16_MAX);
+        syslog(LOG_WARNING, "@@ A");
         void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, UINT16_MAX, temp_buf);
         if(src == NULL){
             syslog(LOG_WARNING, "@@ rte_pktmbuf_read()==NULL");
@@ -5598,6 +5599,7 @@ send_packets(struct dp_packet_batch *batch)
             syslog(LOG_WARNING, "@@ pkt_len > UINT16_MAX %d", packet_data->mbuf.pkt_len);
         }
         memcpy(dst, src, packet_data->mbuf.pkt_len);
+        syslog(LOG_WARNING, "@@ B");
         // #else
         // memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         // #endif
@@ -5605,26 +5607,35 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
+    syslog(LOG_WARNING, "@@ C");
 
     // result
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
     }
+    syslog(LOG_WARNING, "@@ D");
 
     for (int packets = 0; packets < batch->count; packets++){
+        syslog(LOG_WARNING, "@@ E");
         if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
+            syslog(LOG_WARNING, "@@ F");
             // Shift packets to the left
             for (int i = packets; i < batch->count - 1; i++) {
                 batch->packets[i] = batch->packets[i + 1];
             }
+            syslog(LOG_WARNING, "@@ G");
             batch->packets[batch->count - 1] = NULL;
             batch->count--;
             packets--;
+            syslog(LOG_WARNING, "@@ H");
         }
     }
+    syslog(LOG_WARNING, "@@ I");
     
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+
+    syslog(LOG_WARNING, "@@ J");
     
     // TODO: Implement shutdown logic
 
@@ -5636,12 +5647,15 @@ send_packets(struct dp_packet_batch *batch)
     }else{
         ret = -1;
     }
+    syslog(LOG_WARNING, "@@ K");
 
     #ifdef DPDK_NETDEV
     free(temp_buf);
+    syslog(LOG_WARNING, "@@ L");
     #endif
 
     #ifdef DEBUG_INVESTIGATION
+    syslog(LOG_WARNING, "@@ M");
     closelog();
     #endif
     
