@@ -5469,6 +5469,7 @@ prepare_shm(void)
 void
 show_flags(void)
 {
+    syslog(LOG_WARNING, "@@");
     syslog(LOG_WARNING, "@@ SHM_FLAG_PACKETS: %d",
         *((char *)shm_ptr + SHM_FLAG_PACKETS));
     syslog(LOG_WARNING, "@@ SHM_FLAG_RESULTS: %d",
@@ -5564,6 +5565,7 @@ send_packets(struct dp_packet_batch *batch)
         #endif
     }
     show_flags();
+    syslog(LOG_WARNING, "@@ sent");
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
     show_flags();
 
@@ -5586,6 +5588,7 @@ send_packets(struct dp_packet_batch *batch)
         }
     }
     show_flags();
+    syslog(LOG_WARNING, "@@ received");
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
     show_flags();
     
