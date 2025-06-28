@@ -5524,7 +5524,7 @@ send_packets(struct dp_packet_batch *batch)
 #define DEBUG_INVESTIGATION
     #ifdef DEBUG_INVESTIGATION
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "@@ Batch");
+    // syslog(LOG_WARNING, "@@ Batch");
     #endif
 
     // if(batch->count * SHM_SIZE_PER_PACKET > SHM_SIZE){
