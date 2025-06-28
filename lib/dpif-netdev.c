@@ -5594,6 +5594,9 @@ send_packets(struct dp_packet_batch *batch)
         void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, UINT16_MAX, temp_buf);
         if(src == NULL){
             syslog(LOG_WARNING, "@@ rte_pktmbuf_read()==NULL");
+            if(packet_data->mbuf == NULL){
+                syslog(LOG_WARNING, "@@ packet_data->mbuf==NULL");
+            }
         }
         if(packet_data->mbuf.pkt_len > UINT16_MAX){
             syslog(LOG_WARNING, "@@ pkt_len > UINT16_MAX %d", packet_data->mbuf.pkt_len);
