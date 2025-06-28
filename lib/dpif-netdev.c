@@ -5602,12 +5602,12 @@ send_packets(struct dp_packet_batch *batch)
         //     syslog(LOG_WARNING, "@@ pkt_len > TEMP_BUF_SIZE %d", packet_data->mbuf.pkt_len);
         // }
         void *src;
-        if(&packet_data->mbuf.nb.segs == 1){
+        if(&packet_data->mbuf.nb_segs == 1){
             // when seg==1
             src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
         }else{
             src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
-            syslog(LOG_WARNING, "@@ segs: %d", &packet_data->mbuf.nb.segs);
+            syslog(LOG_WARNING, "@@ segs: %d", &packet_data->mbuf.nb_segs);
             syslog(LOG_WARNING, "@@ pkt_len: %d", &packet_data->mbuf.pkt_len);
         }
         memcpy(dst, src, packet_data->mbuf.pkt_len);
