@@ -5616,6 +5616,7 @@ send_packets(struct dp_packet_batch *batch)
     // result
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
+        syslog(LOG_WARNING, "@@ waiting for SHM_FLAG_RESULTS==1");
     }
     syslog(LOG_WARNING, "@@ D");
 
