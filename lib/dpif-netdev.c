@@ -5514,12 +5514,12 @@ send_packets(struct dp_packet_batch *batch)
         usleep(WAIT_TIME);
     }
 
-    if(batch == NULL){
-        syslog(LOG_WARNING, "@@ batch == NULL");
-    }
-    if(batch->count < 1){
-        syslog(LOG_WARNING, "@@ batch->count < 1: %d", batch->count);
-    }
+    // if(batch == NULL){
+    //     syslog(LOG_WARNING, "@@ batch == NULL");
+    // }
+    // if(batch->count < 1){
+    //     syslog(LOG_WARNING, "@@ batch->count < 1: %d", batch->count);
+    // }
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
 #define DEBUG_INVESTIGATION
     #ifdef DEBUG_INVESTIGATION
@@ -5527,20 +5527,20 @@ send_packets(struct dp_packet_batch *batch)
     syslog(LOG_WARNING, "@@ Batch");
     #endif
 
-    if(batch->count * SHM_SIZE_PER_PACKET > SHM_SIZE){
-        syslog(LOG_WARNING, "@@ oversize for shm %d", batch->count);
-    }
+    // if(batch->count * SHM_SIZE_PER_PACKET > SHM_SIZE){
+    //     syslog(LOG_WARNING, "@@ oversize for shm %d", batch->count);
+    // }
 
     for (int packets = 0; packets < batch->count; packets++){
         packet_data = batch->packets[packets];
-        if(packet_data == NULL){
-            syslog(LOG_WARNING, "@@ packet_data == NULL");
-        }
+        // if(packet_data == NULL){
+        //     syslog(LOG_WARNING, "@@ packet_data == NULL");
+        // }
         memset(&dp_packet2, 0, sizeof(dp_packet2));
 
         // #ifdef DPDK_NETDEV
         dp_packet2.allocated_ = TEMP_BUF_SIZE;
-        syslog(LOG_WARNING, "@@ Sdp_packet2.allocated_ %d", dp_packet2.allocated_);
+        // syslog(LOG_WARNING, "@@ Sdp_packet2.allocated_ %d", dp_packet2.allocated_);
         dp_packet2.data_ofs = packet_data->mbuf.data_off;
         dp_packet2.size_ = packet_data->mbuf.pkt_len;
         dp_packet2.ol_flags = packet_data->mbuf.ol_flags;
@@ -5584,13 +5584,13 @@ send_packets(struct dp_packet_batch *batch)
         // #ifdef DPDK_NETDEV
 
         #ifdef DEBUG_INVESTIGATION
-        syslog(LOG_WARNING, "@@ packet_data->mbuf.nb_segs %d", packet_data->mbuf.nb_segs);
-        syslog(LOG_WARNING, "@@ packet_data->mbuf.pkt_len %d", packet_data->mbuf.pkt_len);
-        syslog(LOG_WARNING, "@@ dp_packet2.allocated_ %d", dp_packet2.allocated_);
+        // syslog(LOG_WARNING, "@@ packet_data->mbuf.nb_segs %d", packet_data->mbuf.nb_segs);
+        // syslog(LOG_WARNING, "@@ packet_data->mbuf.pkt_len %d", packet_data->mbuf.pkt_len);
+        // syslog(LOG_WARNING, "@@ dp_packet2.allocated_ %d", dp_packet2.allocated_);
         #endif
 
         memset(temp_buf, 0, TEMP_BUF_SIZE);
-        syslog(LOG_WARNING, "@@ A");
+        // syslog(LOG_WARNING, "@@ A");
         // void *src = rte_pktmbuf_read(&packet_data->mbuf, 0, TEMP_BUF_SIZE, temp_buf);
         // if(src == NULL){
         //     syslog(LOG_WARNING, "@@ rte_pktmbuf_read()==NULL");
@@ -5603,7 +5603,7 @@ send_packets(struct dp_packet_batch *batch)
         // }
         void *src = rte_pktmbuf_mtod(&packet_data->mbuf, void *); // when seg==1
         memcpy(dst, src, packet_data->mbuf.pkt_len);
-        syslog(LOG_WARNING, "@@ B");
+        // syslog(LOG_WARNING, "@@ B");
         // #else
         // memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         // #endif
@@ -5611,36 +5611,36 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
-    syslog(LOG_WARNING, "@@ C");
+    // syslog(LOG_WARNING, "@@ C");
 
     // result
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
-        syslog(LOG_WARNING, "@@ waiting for SHM_FLAG_RESULTS==1");
+        // syslog(LOG_WARNING, "@@ waiting for SHM_FLAG_RESULTS==1");
     }
-    syslog(LOG_WARNING, "@@ D");
+    // syslog(LOG_WARNING, "@@ D");
 
     for (int packets = 0; packets < batch->count; packets++){
-        syslog(LOG_WARNING, "@@ E");
+        // syslog(LOG_WARNING, "@@ E");
         if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
-            syslog(LOG_WARNING, "@@ F");
+            // syslog(LOG_WARNING, "@@ F");
             // Shift packets to the left
             for (int i = packets; i < batch->count - 1; i++) {
                 batch->packets[i] = batch->packets[i + 1];
             }
-            syslog(LOG_WARNING, "@@ G");
+            // syslog(LOG_WARNING, "@@ G");
             batch->packets[batch->count - 1] = NULL;
             batch->count--;
             packets--;
-            syslog(LOG_WARNING, "@@ H");
+            // syslog(LOG_WARNING, "@@ H");
         }
     }
-    syslog(LOG_WARNING, "@@ I");
+    // syslog(LOG_WARNING, "@@ I");
     
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
 
-    syslog(LOG_WARNING, "@@ J");
+    // syslog(LOG_WARNING, "@@ J");
     
     // TODO: Implement shutdown logic
 
@@ -5652,15 +5652,15 @@ send_packets(struct dp_packet_batch *batch)
     }else{
         ret = -1;
     }
-    syslog(LOG_WARNING, "@@ K");
+    // syslog(LOG_WARNING, "@@ K");
 
     #ifdef DPDK_NETDEV
     free(temp_buf);
-    syslog(LOG_WARNING, "@@ L");
+    // syslog(LOG_WARNING, "@@ L");
     #endif
 
     #ifdef DEBUG_INVESTIGATION
-    syslog(LOG_WARNING, "@@ M");
+    // syslog(LOG_WARNING, "@@ M");
     closelog();
     #endif
     
