@@ -5503,9 +5503,9 @@ send_packets(struct dp_packet_batch *batch)
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
     // show_flags();
 
-    syslog(LOG_WARNING, "@@ batch start");
+    // syslog(LOG_WARNING, "@@ batch start");
     for (int packets = 0; packets < batch->count; packets++){
-        syslog(LOG_WARNING, "@@ packet start");
+        // syslog(LOG_WARNING, "@@ packet start");
 
         packet_data = batch->packets[packets];
         memset(&dp_packet2, 0, sizeof(dp_packet2));
@@ -5566,11 +5566,9 @@ send_packets(struct dp_packet_batch *batch)
         #endif
     }
     // show_flags();
-    // syslog(LOG_WARNING, "@@ sent");
+    syslog(LOG_WARNING, "@@ sent");
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
-
-    sleep(5);
 
     // show_flags();
 
@@ -5594,10 +5592,8 @@ send_packets(struct dp_packet_batch *batch)
     }
 
     // show_flags();
-    // syslog(LOG_WARNING, "@@ received");
+    syslog(LOG_WARNING, "@@ received");
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
-
-    sleep(5);
 
     // show_flags();
     
