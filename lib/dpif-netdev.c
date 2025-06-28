@@ -5619,6 +5619,10 @@ send_packets(struct dp_packet_batch *batch)
         ret = -1;
     }
 
+    #ifdef DPDK_NETDEV
+    free(temp_buf);
+    #endif
+
     #ifdef DEBUG_INVESTIGATION
     closelog();
     #endif
