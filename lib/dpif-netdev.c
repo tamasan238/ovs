@@ -5566,7 +5566,16 @@ send_packets(struct dp_packet_batch *batch)
         #endif
     }
     // show_flags();
+
+    struct timeval start, end;
+    long elapsed_us;
+    gettimeofday(&start, NULL);
+
     syslog(LOG_WARNING, "@@ sent");
+
+    gettimeofday(&end, NULL);
+    elapsed_us = (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_usec - start.tv_usec);
+    syslog(LOG_WARNING, "@@ syslog use(us): %ld", elapsed_us);
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
 
