@@ -5466,9 +5466,18 @@ prepare_shm(void)
     return 0;
 }
 
+void
+show_flags(void)
+{
+    syslog(LOG_WARNING, "@@ SHM_FLAG_PACKETS: %d", SHM_FLAG_PACKETS);
+    syslog(LOG_WARNING, "@@ SHM_FLAG_RESULTS: %d", SHM_FLAG_RESULTS);
+    syslog(LOG_WARNING, "@@ SHM_FLAG_HOW_MANY_PACKETS: %d", SHM_FLAG_HOW_MANY_PACKETS);
+}
+
 int
 send_packets(struct dp_packet_batch *batch)
 {
+#define DEBUG_INVESTIGATION
     int ret = 0;
     uint64_t size = sizeof(struct dp_packet_p4);
 
@@ -5476,20 +5485,29 @@ send_packets(struct dp_packet_batch *batch)
     struct dp_packet_p4 dp_packet2;
     dp_packet2.base_ = NULL;
 
-    while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
-        usleep(WAIT_TIME);
-    }
-
-    memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
-#define DEBUG_INVESTIGATION
     #ifdef DEBUG_INVESTIGATION
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
     // syslog(LOG_WARNING, "@@ Batch");
     #endif
+    
+    show_flags();
+    while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
+        usleep(WAIT_TIME);
+    }
+    show_flags();
+    memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
+    show_flags();
 
+    syslog(LOG_WARNING, "@@ batch start");
     for (int packets = 0; packets < batch->count; packets++){
+        syslog(LOG_WARNING, "@@ packet start");
+
         packet_data = batch->packets[packets];
         memset(&dp_packet2, 0, sizeof(dp_packet2));
+
+        if(packet_data->mbuf.data_len==0){
+            syslog(LOG_WARNING, "@@ packet_data->mbuf.data_len==0 (may be dp_packet2.allocated_==0)");
+        }
 
         #ifdef DPDK_NETDEV
         dp_packet2.allocated_ = packet_data->mbuf.data_len;
@@ -5542,12 +5560,15 @@ send_packets(struct dp_packet_batch *batch)
         memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         #endif
     }
+    show_flags();
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
+    show_flags();
 
     // result
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
     }
+    show_flags();
 
     for (int packets = 0; packets < batch->count; packets++){
         if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
@@ -5561,8 +5582,9 @@ send_packets(struct dp_packet_batch *batch)
             packets--;
         }
     }
-    
+    show_flags();
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+    show_flags();
     
     // TODO: Implement shutdown logic
 
