@@ -5513,7 +5513,7 @@ send_packets(struct dp_packet_batch *batch)
         if(packet_data->mbuf.data_len==0){
             syslog(LOG_WARNING, "@@ packet_data->mbuf.data_len==0 (may be dp_packet2.allocated_==0)");
         }
-
+#define ONLY_FIRST_64_BYTES
         #ifdef DPDK_NETDEV
         dp_packet2.allocated_ = packet_data->mbuf.data_len;
         #ifdef ONLY_FIRST_64_BYTES
