@@ -5577,7 +5577,7 @@ send_packets(struct dp_packet_batch *batch)
     // elapsed_us = (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_usec - start.tv_usec);
     // syslog(LOG_WARNING, "@@ syslog use(us): %ld", elapsed_us);
 
-    usleep(5);
+    // usleep(5);
 
     *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
 
