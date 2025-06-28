@@ -5491,7 +5491,7 @@ send_packets(struct dp_packet_batch *batch)
 
     #ifdef DEBUG_INVESTIGATION
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "@@ Batch");
+    // syslog(LOG_WARNING, "@@ Batch");
     #endif
     
     // show_flags();
@@ -5502,9 +5502,9 @@ send_packets(struct dp_packet_batch *batch)
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
     // show_flags();
 
-    syslog(LOG_WARNING, "@@ batch start");
+    // syslog(LOG_WARNING, "@@ batch start");
     for (int packets = 0; packets < batch->count; packets++){
-        syslog(LOG_WARNING, "@@ packet start");
+        // syslog(LOG_WARNING, "@@ packet start");
 
         packet_data = batch->packets[packets];
         memset(&dp_packet2, 0, sizeof(dp_packet2));
