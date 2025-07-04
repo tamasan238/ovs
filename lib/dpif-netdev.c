@@ -5499,7 +5499,7 @@ send_packets(struct dp_packet_batch *batch)
     
     // show_flags();
     while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
-        usleep(WAIT_TIME);
+        // usleep(WAIT_TIME);
     }
     // show_flags();
     memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
@@ -5592,7 +5592,7 @@ send_packets(struct dp_packet_batch *batch)
 
     // result
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
-        usleep(WAIT_TIME);
+        // usleep(WAIT_TIME);
     }
     // show_flags();
 
