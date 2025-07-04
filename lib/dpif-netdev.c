@@ -40,7 +40,7 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 
-#include <sys/syscall.h> // for get tid
+// #include <sys/syscall.h> // for get tid
 
 #define WAIT_TIME 1
 
@@ -5576,9 +5576,9 @@ send_packets(struct dp_packet_batch *batch)
     // long elapsed_us;
     // gettimeofday(&start, NULL);
 
-    pid_t pid = getpid();
-    pid_t tid = (pid_t) syscall(SYS_gettid);
-    syslog(LOG_WARNING, "@@ sent / PID: %d, TID: %d", pid, tid);
+    // pid_t pid = getpid();
+    // pid_t tid = (pid_t) syscall(SYS_gettid);
+    // syslog(LOG_WARNING, "@@ sent / PID: %d, TID: %d", pid, tid);
 
     // gettimeofday(&end, NULL);
     // elapsed_us = (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_usec - start.tv_usec);
@@ -5613,7 +5613,7 @@ send_packets(struct dp_packet_batch *batch)
 
     usleep(5);
 
-    syslog(LOG_WARNING, "@@ received / PID: %d, TID: %d", pid, tid);
+    // syslog(LOG_WARNING, "@@ received / PID: %d, TID: %d", pid, tid);
     *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
 
     // show_flags();
