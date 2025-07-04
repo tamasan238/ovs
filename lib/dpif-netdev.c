@@ -5592,7 +5592,7 @@ send_packets(struct dp_packet_batch *batch)
 
     // result
     while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
-        // usleep(WAIT_TIME);
+        usleep(WAIT_TIME);
     }
     // show_flags();
 
