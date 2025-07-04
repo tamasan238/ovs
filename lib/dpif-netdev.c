@@ -40,6 +40,8 @@
 #include <sys/time.h>
 #include <sys/mman.h>
 
+#include <sys/syscall.h> // for get tid
+
 #define WAIT_TIME 1
 
 #define SHM_NAME "/dev/shm/ivshmem"
