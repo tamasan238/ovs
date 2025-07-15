@@ -42,28 +42,42 @@
 
 // #include <sys/syscall.h> // for get tid
 
+typedef struct
+{
+    long long ovs_thread_id;
+    int p4runtime_id;
+} Connection;
+
 #define WAIT_TIME 1
 
 #define SHM_NAME "/dev/shm/ivshmem"
 #define SHM_SIZE (8 * 1024 * 1024) // 8MB
 
-#define SHM_VM_AREA 0
-#define SHM_FLAGS_AREA (SHM_VM_AREA + 2 * 1024 * 1024) // start at 2MB
-#define SHM_OVS_AREA (SHM_FLAGS_AREA + 4*1024) // start at 2MB + 4KB
+#define VM_AREA 0                                  // unused in this program
+#define META_AREA (VM_AREA + 2 * 1024 * 1024)      // Start at 2MB
+#define PACKETS_AREA (META_AREA + 2 * 1024 * 1024) // Start at 4MB
 
-#define SHM_FLAG_PACKETS SHM_FLAGS_AREA
-#define SHM_FLAG_RESULTS (SHM_FLAGS_AREA + 1)
-#define SHM_FLAG_HOW_MANY_PACKETS (SHM_FLAGS_AREA + 2)
+#define MAX_CONNECTIONS 512
 
-#define SHM_SIZE_DP_PACKET_2 (64 * 1024)
-#define SHM_SIZE_PACKET (64 * 1024)
-#define SHM_SIZE_RESULT (4 * 1024)
-#define SHM_SIZE_PER_PACKET (SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET + SHM_SIZE_RESULT)
+#define SHM_SESSION_TABLE 0
+#define SHM_TABLE_IS_LOCKED (SHM_SESSION_TABLE + sizeof(Connection) * MAX_CONNECTIONS)
 
-#define TEMP_BUF_SIZE RTE_ETHER_MAX_JUMBO_FRAME_LEN // from rte_ether.h (0x3F00)
+// #define SHM_FLAG_PACKETS SHM_FLAGS_AREA
+// #define SHM_FLAG_RESULTS (SHM_FLAGS_AREA + 1)
+// #define SHM_FLAG_HOW_MANY_PACKETS (SHM_FLAGS_AREA + 2)
+
+// #define SHM_SIZE_DP_PACKET_2 (64 * 1024)
+// #define SHM_SIZE_PACKET (64 * 1024)
+// #define SHM_SIZE_RESULT (4 * 1024)
+// #define SHM_SIZE_PER_PACKET (SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET + SHM_SIZE_RESULT)
+
+// #define TEMP_BUF_SIZE RTE_ETHER_MAX_JUMBO_FRAME_LEN // from rte_ether.h (0x3F00)
 
 static int fd;
 static char *shm_ptr;
+
+Connection *session;
+bool *is_locked;
 
 #include "bitmap.h"
 #include "ccmap.h"
@@ -5464,8 +5478,18 @@ prepare_shm(void)
     closelog();
     #endif
 
-    *((char *)shm_ptr + SHM_FLAG_PACKETS) = 0;
-    *((char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+    // *((char *)shm_ptr + SHM_FLAG_PACKETS) = 0; // Temporaly off for multi-thread programming
+    // *((char *)shm_ptr + SHM_FLAG_RESULTS) = 0; // Temporaly off for multi-thread programming
+
+    session = (Connection *)(shm_ptr + META_AREA + SHM_SESSION_TABLE);
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+    {
+        session[i].ovs_thread_id = -1;
+        session[i].p4runtime_id = -1;
+    }
+
+    is_locked = (bool *)(shm_ptr + META_AREA + SHM_TABLE_IS_LOCKED);
+    *is_locked = false;
 
     return 0;
 }
@@ -5481,6 +5505,10 @@ prepare_shm(void)
 //     syslog(LOG_WARNING, "@@ SHM_FLAG_HOW_MANY_PACKETS: %d",
 //         *((char *)shm_ptr + SHM_FLAG_HOW_MANY_PACKETS));
 // }
+
+#define OFF
+
+#ifndef OFF // Temporaly off for multi-thread programming
 
 int
 send_packets(struct dp_packet_batch *batch)
@@ -5632,6 +5660,8 @@ send_packets(struct dp_packet_batch *batch)
     return ret;
 }
 
+#endif // Temporaly off for multi-thread programming
+
 static int
 dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
                            struct dp_netdev_rxq *rxq,
@@ -5668,7 +5698,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     #endif
 
     if (!error) {
-        error = send_packets(&batch);
+        // error = send_packets(&batch); // Temporaly off for multi-thread programming
         #ifdef DEBUG_RXQ
         syslog(LOG_WARNING, "@ (send_packets)");
         #endif
@@ -6633,6 +6663,35 @@ reload_affected_pmds(struct dp_netdev *dp)
     }
 }
 
+void
+p4launcher_add(pthread_t thread_id)
+{
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+    {
+        if (session[i].ovs_thread_id == -1 && session[i].p4runtime_id == -1)
+        {
+            session[i].ovs_thread_id = (long long)thread_id;
+            // for debug
+            syslog(LOG_WARNING, "[for P4Launcher] add | TID: %lld, i: %d", thread_id, i);
+            break;
+        }
+    }
+}
+
+void
+p4launcher_del(pthread_t thread_id)
+{
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+    {
+        if (session[i].ovs_thread_id == (long long)thread_id)
+        {
+            session[i].ovs_thread_id = -1;
+            // for debug
+            syslog(LOG_WARNING, "[for P4Launcher] del | TID: %lld, i: %d", thread_id, i);
+        }
+    }
+}
+
 static void
 reconfigure_pmd_threads(struct dp_netdev *dp)
     OVS_REQ_RDLOCK(dp->port_rwlock)
@@ -6683,6 +6742,7 @@ reconfigure_pmd_threads(struct dp_netdev *dp)
         pmd = (struct dp_netdev_pmd_thread *) node->data;
         VLOG_INFO("PMD thread on numa_id: %d, core id: %2d destroyed.",
                   pmd->numa_id, pmd->core_id);
+        p4launcher_del(pmd->thread);
         dp_netdev_del_pmd(dp, pmd);
     }
     changed = !hmapx_is_empty(&to_delete);
@@ -6706,6 +6766,7 @@ reconfigure_pmd_threads(struct dp_netdev *dp)
             ds_put_format(&name, "pmd-c%02d/id:", core->core_id);
             pmd->thread = ovs_thread_create(ds_cstr(&name),
                                             pmd_thread_main, pmd);
+            p4launcher_add(pmd->thread);
             ds_destroy(&name);
 
             VLOG_INFO("PMD thread on numa_id: %d, core id: %2d created.",
