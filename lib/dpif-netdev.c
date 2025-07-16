@@ -7413,7 +7413,7 @@ reload:
 
     pmd->next_rcu_quiesce = pmd->ctx.now + PMD_RCU_QUIESCE_INTERVAL;
 
-    ovs_tid = gettid();
+    ovs_tid = (long long)pthread_self();
     session_id = get_session_id();
     offset = calc_offset();
     wait_for_p4runtime();
