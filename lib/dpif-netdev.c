@@ -7311,7 +7311,7 @@ get_session_id(void)
                 return i;
             }
         }
-        syslog(LOG_WARNING, "session not found. waiting 1us");
+        syslog(LOG_WARNING, "session not found for TID %lld. waiting 1us", ovs_tid);
         usleep(1);
     }
     return -1;

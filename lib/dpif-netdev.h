@@ -34,7 +34,9 @@ extern "C" {
 enum { DP_NETDEV_HEADROOM = 2 + VLAN_HEADER_LEN };
 
 int connect_socket(void);
-int prepare_shm(void);
+void shm_start(void);
+void shm_init(void);
+void shm_end(void);
 int send_packets(struct dp_packet_batch *);
 void p4launcher_add(pthread_t);
 void p4launcher_del(pthread_t);
