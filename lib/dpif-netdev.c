@@ -7307,7 +7307,7 @@ get_session_id(void)
         {
             if (session[i].ovs_thread_id == ovs_tid)
             {
-                syslog(LOG_WARNING, "Session ID is %d", i);
+                syslog(LOG_WARNING, "Session ID is %d (my TID is %lld)", i, (long long)pthread_self());
                 return i;
             }
         }
