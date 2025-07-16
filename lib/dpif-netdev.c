@@ -39,17 +39,11 @@
 #include <syslog.h>
 #include <sys/time.h>
 #include <sys/mman.h>
-
-// #include <sys/syscall.h> // for get tid
-
-typedef struct
-{
-    long long ovs_thread_id;
-    int p4runtime_id;
-} Connection;
+#include <sys/syscall.h>
 
 #define WAIT_TIME 1
 
+/* for shm */
 #define SHM_NAME "/dev/shm/ivshmem"
 #define SHM_SIZE (8 * 1024 * 1024) // 8MB
 
@@ -57,27 +51,40 @@ typedef struct
 #define META_AREA (VM_AREA + 2 * 1024 * 1024)      // Start at 2MB
 #define PACKETS_AREA (META_AREA + 2 * 1024 * 1024) // Start at 4MB
 
-#define MAX_CONNECTIONS 512
-
-#define SHM_SESSION_TABLE 0
-#define SHM_TABLE_IS_LOCKED (SHM_SESSION_TABLE + sizeof(Connection) * MAX_CONNECTIONS)
-
-// #define SHM_FLAG_PACKETS SHM_FLAGS_AREA
-// #define SHM_FLAG_RESULTS (SHM_FLAGS_AREA + 1)
-// #define SHM_FLAG_HOW_MANY_PACKETS (SHM_FLAGS_AREA + 2)
-
-// #define SHM_SIZE_DP_PACKET_2 (64 * 1024)
-// #define SHM_SIZE_PACKET (64 * 1024)
-// #define SHM_SIZE_RESULT (4 * 1024)
-// #define SHM_SIZE_PER_PACKET (SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET + SHM_SIZE_RESULT)
-
-// #define TEMP_BUF_SIZE RTE_ETHER_MAX_JUMBO_FRAME_LEN // from rte_ether.h (0x3F00)
-
 static int fd;
 static char *shm_ptr;
 
+long long tid = -1;
+int session_id = -1;
+intptr_t offset = -1;
+/* end */
+
+/* META_AREA */
+typedef struct
+{
+    long long ovs_thread_id;
+    int p4runtime_id;
+} Connection;
+
+#define MAX_CONNECTIONS 512
+#define SHM_SESSION_TABLE META_AREA
+#define SHM_TABLE_IS_LOCKED (SHM_SESSION_TABLE + sizeof(Connection) * MAX_CONNECTIONS)
+
 Connection *session;
 bool *is_locked;
+/* end */
+
+/* PACKETS_AREA */
+#define SHM_SIZE_DP_PACKET_2 64
+#define SHM_SIZE_PACKET 64
+#define SHM_SIZE_RESULT 32
+#define SHM_SIZE_FLAGS 32
+#define SHM_SIZE_PER_PACKET (SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET + SHM_SIZE_RESULT + SHM_SIZE_FLAGS)
+
+#define SHM_FLAG_PACKETS (PACKETS_AREA + SHM_SIZE_PER_PACKET - SHM_SIZE_FLAGS)
+#define SHM_FLAG_RESULTS (SHM_FLAG_PACKETS + 1)
+#define SHM_FLAG_HOW_MANY_PACKETS (SHM_FLAG_PACKETS + 2) // use only first packet in batch
+/* end */
 
 #include "bitmap.h"
 #include "ccmap.h"
@@ -1722,10 +1729,8 @@ dpif_netdev_init(void)
                              0, 0, dpif_miniflow_extract_impl_get,
                              NULL);
 
-    if ((prepare_shm()) != 0) {
-        fprintf(stderr, "ERROR: Cannot open shm\n");
-        return 1;
-    }
+    shm_start();
+    shm_init();
 
     return 0;
 }
@@ -5453,8 +5458,8 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
-int
-prepare_shm(void)
+void
+shm_start(void)
 {
     fd = open(SHM_NAME, O_RDWR);
 
@@ -5471,27 +5476,28 @@ prepare_shm(void)
 
     openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
 
-    #ifdef DEBUG
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-    syslog(LOG_WARNING, "SHM opened.\n");
-    syslog(LOG_WARNING, "mapped to %p\n", shm_ptr);
-    closelog();
-    #endif
+    syslog(LOG_WARNING, "SHM opened.");
+    syslog(LOG_WARNING, "mapped to %p", shm_ptr);
+}
 
-    // *((char *)shm_ptr + SHM_FLAG_PACKETS) = 0; // Temporaly off for multi-thread programming
-    // *((char *)shm_ptr + SHM_FLAG_RESULTS) = 0; // Temporaly off for multi-thread programming
-
-    session = (Connection *)(shm_ptr + META_AREA + SHM_SESSION_TABLE);
+void
+shm_init(void)
+{
+    syslog(LOG_WARNING, "shm_init() is called");
+    /* META_AREA */
+    session = (Connection *)(shm_ptr + SHM_SESSION_TABLE);
     for (int i = 0; i < MAX_CONNECTIONS; i++)
     {
         session[i].ovs_thread_id = -1;
         session[i].p4runtime_id = -1;
     }
 
-    is_locked = (bool *)(shm_ptr + META_AREA + SHM_TABLE_IS_LOCKED);
+    is_locked = (bool *)(shm_ptr + SHM_TABLE_IS_LOCKED);
     *is_locked = false;
 
-    return 0;
+    /* PACKETS_AREA */
+    *((char *)shm_ptr + offset + SHM_FLAG_PACKETS) = 0;
+    *((char *)shm_ptr + offset + SHM_FLAG_RESULTS) = 0;
 }
 
 // void
@@ -5505,10 +5511,6 @@ prepare_shm(void)
 //     syslog(LOG_WARNING, "@@ SHM_FLAG_HOW_MANY_PACKETS: %d",
 //         *((char *)shm_ptr + SHM_FLAG_HOW_MANY_PACKETS));
 // }
-
-#define OFF
-
-#ifndef OFF // Temporaly off for multi-thread programming
 
 int
 send_packets(struct dp_packet_batch *batch)
@@ -5526,11 +5528,11 @@ send_packets(struct dp_packet_batch *batch)
     #endif
     
     // show_flags();
-    while (*(shm_ptr + SHM_FLAG_PACKETS) != 0) {
+    while (*(shm_ptr + offset + SHM_FLAG_PACKETS) != 0) {
         usleep(WAIT_TIME);
     }
     // show_flags();
-    memcpy(shm_ptr+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
+    memcpy(shm_ptr+offset+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
     // show_flags();
 
     // syslog(LOG_WARNING, "@@ batch start");
@@ -5580,15 +5582,15 @@ send_packets(struct dp_packet_batch *batch)
         dp_packet2.csum_offset = packet_data->csum_offset;
 
         // dp_packet2
-        memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET), 
+        memset(shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET), 
             0, SHM_SIZE_DP_PACKET_2);
-        memcpy(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET), 
+        memcpy(shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET), 
             &dp_packet2, size);
         
         // packet
-        memset(shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-            SHM_SIZE_DP_PACKET_2, 0, TEMP_BUF_SIZE);
-        void *dst = shm_ptr+SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+        memset(shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+            SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
+        void *dst = shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2;
 
         #ifdef DPDK_NETDEV
@@ -5614,18 +5616,18 @@ send_packets(struct dp_packet_batch *batch)
 
     // usleep(5);
 
-    *((volatile char *)shm_ptr + SHM_FLAG_PACKETS) = 1;
+    *((volatile char *)shm_ptr + offset + SHM_FLAG_PACKETS) = 1;
 
     // show_flags();
 
     // result
-    while (*(shm_ptr + SHM_FLAG_RESULTS) != 1) {
+    while (*(shm_ptr + offset + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
     }
     // show_flags();
 
     for (int packets = 0; packets < batch->count; packets++){
-        if (*(shm_ptr + SHM_OVS_AREA+(packets*SHM_SIZE_PER_PACKET)+
+        if (*(shm_ptr + offset + PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET)+
             SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
             // Shift packets to the left
             for (int i = packets; i < batch->count - 1; i++) {
@@ -5642,7 +5644,7 @@ send_packets(struct dp_packet_batch *batch)
     usleep(5);
 
     // syslog(LOG_WARNING, "@@ received / PID: %d, TID: %d", pid, tid);
-    *((volatile char *)shm_ptr + SHM_FLAG_RESULTS) = 0;
+    *((volatile char *)shm_ptr + offset + SHM_FLAG_RESULTS) = 0;
 
     // show_flags();
     
@@ -5659,8 +5661,6 @@ send_packets(struct dp_packet_batch *batch)
     
     return ret;
 }
-
-#endif // Temporaly off for multi-thread programming
 
 static int
 dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
@@ -5698,7 +5698,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     #endif
 
     if (!error) {
-        // error = send_packets(&batch); // Temporaly off for multi-thread programming
+        error = send_packets(&batch);
         #ifdef DEBUG_RXQ
         syslog(LOG_WARNING, "@ (send_packets)");
         #endif
@@ -7298,6 +7298,47 @@ pmd_load_queues_and_ports(struct dp_netdev_pmd_thread *pmd,
     return i;
 }
 
+int
+get_session_id(void)
+{
+    while(true){
+        for (int i = 0; i < MAX_CONNECTIONS; i++)
+        {
+            if (session[i].ovs_thread_id == tid)
+            {
+                syslog(LOG_WARNING, "Session ID is %d", i);
+                return i;
+            }
+        }
+        syslog(LOG_WARNING, "session not found. waiting 1us");
+        usleep(1);
+    }
+    return -1;
+}
+
+intptr_t
+calc_offset(void)
+{
+    intptr_t ret = SHM_SIZE_PER_PACKET * session_id;
+    syslog(LOG_WARNING, "Calculated offset is %d", (int)ret);
+    return ret;
+}
+
+void
+wait_for_p4runtime(void)
+{
+    while(true){
+        int runtime_id = session[session_id].p4runtime_id;
+        if (runtime_id != -1)
+        {
+            syslog(LOG_WARNING, "P4Runtime ID is %d", );
+            return;
+        }
+        syslog(LOG_WARNING, "waiting for p4 runtime...");
+        usleep(1);
+    }
+}
+
 static void *
 pmd_thread_main(void *f_)
 {
@@ -7370,6 +7411,11 @@ reload:
     cycles_counter_update(s);
 
     pmd->next_rcu_quiesce = pmd->ctx.now + PMD_RCU_QUIESCE_INTERVAL;
+
+    tid = gettid();
+    session_id = get_session_id();
+    offset = calc_offset();
+    wait_for_p4runtime();
 
     /* Protect pmd stats from external clearing while polling. */
     ovs_mutex_lock(&pmd->perf_stats.stats_mutex);
