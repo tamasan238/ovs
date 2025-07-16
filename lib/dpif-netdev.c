@@ -54,7 +54,7 @@
 static int fd;
 static char *shm_ptr;
 
-long long tid = -1;
+long long ovs_tid = -1;
 int session_id = -1;
 intptr_t offset = -1;
 /* end */
@@ -1663,6 +1663,49 @@ dpif_netdev_bond_show(struct unixctl_conn *conn, int argc,
     unixctl_command_reply(conn, ds_cstr(&reply));
     ds_destroy(&reply);
 }
+
+void
+shm_start(void)
+{
+    fd = open(SHM_NAME, O_RDWR);
+
+    if (fd == -1) {
+        perror("shm_open");
+        exit(EXIT_FAILURE);
+    }
+
+    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (shm_ptr == MAP_FAILED) {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
+
+    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
+
+    syslog(LOG_WARNING, "SHM opened.");
+    syslog(LOG_WARNING, "mapped to %p", shm_ptr);
+}
+
+void
+shm_init(void)
+{
+    syslog(LOG_WARNING, "shm_init() is called");
+    /* META_AREA */
+    session = (Connection *)(shm_ptr + SHM_SESSION_TABLE);
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+    {
+        session[i].ovs_thread_id = -1;
+        session[i].p4runtime_id = -1;
+    }
+
+    is_locked = (bool *)(shm_ptr + SHM_TABLE_IS_LOCKED);
+    *is_locked = false;
+
+    /* PACKETS_AREA */
+    *((char *)shm_ptr + offset + SHM_FLAG_PACKETS) = 0;
+    *((char *)shm_ptr + offset + SHM_FLAG_RESULTS) = 0;
+}
+
 
 
 static int
@@ -5458,48 +5501,6 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
     return output_cnt;
 }
 
-void
-shm_start(void)
-{
-    fd = open(SHM_NAME, O_RDWR);
-
-    if (fd == -1) {
-        perror("shm_open");
-        exit(EXIT_FAILURE);
-    }
-
-    shm_ptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (shm_ptr == MAP_FAILED) {
-        perror("mmap");
-        exit(EXIT_FAILURE);
-    }
-
-    openlog("KSL-IWAI", LOG_CONS | LOG_PID, LOG_USER);
-
-    syslog(LOG_WARNING, "SHM opened.");
-    syslog(LOG_WARNING, "mapped to %p", shm_ptr);
-}
-
-void
-shm_init(void)
-{
-    syslog(LOG_WARNING, "shm_init() is called");
-    /* META_AREA */
-    session = (Connection *)(shm_ptr + SHM_SESSION_TABLE);
-    for (int i = 0; i < MAX_CONNECTIONS; i++)
-    {
-        session[i].ovs_thread_id = -1;
-        session[i].p4runtime_id = -1;
-    }
-
-    is_locked = (bool *)(shm_ptr + SHM_TABLE_IS_LOCKED);
-    *is_locked = false;
-
-    /* PACKETS_AREA */
-    *((char *)shm_ptr + offset + SHM_FLAG_PACKETS) = 0;
-    *((char *)shm_ptr + offset + SHM_FLAG_RESULTS) = 0;
-}
-
 // void
 // show_flags(void)
 // {
@@ -6672,7 +6673,7 @@ p4launcher_add(pthread_t thread_id)
         {
             session[i].ovs_thread_id = (long long)thread_id;
             // for debug
-            syslog(LOG_WARNING, "[for P4Launcher] add | TID: %lld, i: %d", thread_id, i);
+            syslog(LOG_WARNING, "[for P4Launcher] add | TID: %lld, i: %d", (long long)thread_id, i);
             break;
         }
     }
@@ -6687,7 +6688,7 @@ p4launcher_del(pthread_t thread_id)
         {
             session[i].ovs_thread_id = -1;
             // for debug
-            syslog(LOG_WARNING, "[for P4Launcher] del | TID: %lld, i: %d", thread_id, i);
+            syslog(LOG_WARNING, "[for P4Launcher] del | TID: %lld, i: %d", (long long)thread_id, i);
         }
     }
 }
@@ -7304,7 +7305,7 @@ get_session_id(void)
     while(true){
         for (int i = 0; i < MAX_CONNECTIONS; i++)
         {
-            if (session[i].ovs_thread_id == tid)
+            if (session[i].ovs_thread_id == ovs_tid)
             {
                 syslog(LOG_WARNING, "Session ID is %d", i);
                 return i;
@@ -7331,7 +7332,7 @@ wait_for_p4runtime(void)
         int runtime_id = session[session_id].p4runtime_id;
         if (runtime_id != -1)
         {
-            syslog(LOG_WARNING, "P4Runtime ID is %d", );
+            syslog(LOG_WARNING, "P4Runtime ID is %d", runtime_id);
             return;
         }
         syslog(LOG_WARNING, "waiting for p4 runtime...");
@@ -7412,7 +7413,7 @@ reload:
 
     pmd->next_rcu_quiesce = pmd->ctx.now + PMD_RCU_QUIESCE_INTERVAL;
 
-    tid = gettid();
+    ovs_tid = gettid();
     session_id = get_session_id();
     offset = calc_offset();
     wait_for_p4runtime();

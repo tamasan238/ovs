@@ -38,6 +38,9 @@ int prepare_shm(void);
 int send_packets(struct dp_packet_batch *);
 void p4launcher_add(pthread_t);
 void p4launcher_del(pthread_t);
+int get_session_id(void);
+intptr_t calc_offset(void);
+void wait_for_p4runtime(void);
 
 bool dpif_is_netdev(const struct dpif *);
 
