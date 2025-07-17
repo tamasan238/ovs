@@ -7417,14 +7417,12 @@ reload:
 
         /* Protect pmd stats from external clearing while polling. */
     ovs_mutex_lock(&pmd->perf_stats.stats_mutex);
+    ovs_tid = (long long)pthread_self();
+    p4launcher_add((pthread_t)ovs_tid);
+    session_id = get_session_id();
+    offset = calc_offset();
+    wait_for_p4runtime();
     for (;;) {
-
-        ovs_tid = (long long)pthread_self();
-        p4launcher_add((pthread_t)ovs_tid);
-        session_id = get_session_id();
-        offset = calc_offset();
-        wait_for_p4runtime();
-
         uint64_t rx_packets = 0, tx_packets = 0;
         uint64_t time_slept = 0;
         uint64_t max_sleep;
