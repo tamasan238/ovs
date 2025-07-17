@@ -6768,7 +6768,7 @@ reconfigure_pmd_threads(struct dp_netdev *dp)
             ds_put_format(&name, "pmd-c%02d/id:", core->core_id);
             pmd->thread = ovs_thread_create(ds_cstr(&name),
                                             pmd_thread_main, pmd);
-            // p4launcher_add(pmd->thread);
+            // p4launcher_add(pmd->thread); moved to pmd_thread_main()
             ds_destroy(&name);
 
             VLOG_INFO("PMD thread on numa_id: %d, core id: %2d created.",
