@@ -66,7 +66,8 @@ typedef struct
     int p4runtime_id;
 } Connection;
 
-#define MAX_CONNECTIONS 512
+// #define MAX_CONNECTIONS 512
+#define MAX_CONNECTIONS 8
 #define SHM_SESSION_TABLE META_AREA
 #define SHM_TABLE_IS_LOCKED (SHM_SESSION_TABLE + sizeof(Connection) * MAX_CONNECTIONS)
 
@@ -7302,7 +7303,8 @@ pmd_load_queues_and_ports(struct dp_netdev_pmd_thread *pmd,
 int
 get_session_id(void)
 {
-    while(true){
+    while(true)
+    {
         for (int i = 0; i < MAX_CONNECTIONS; i++)
         {
             if (session[i].ovs_thread_id == ovs_tid)
