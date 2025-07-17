@@ -6768,7 +6768,7 @@ reconfigure_pmd_threads(struct dp_netdev *dp)
             ds_put_format(&name, "pmd-c%02d/id:", core->core_id);
             pmd->thread = ovs_thread_create(ds_cstr(&name),
                                             pmd_thread_main, pmd);
-            // p4launcher_add(pmd->thread); moved to pmd_thread_main()
+            p4launcher_add(pmd->thread); // moved to pmd_thread_main()
             ds_destroy(&name);
 
             VLOG_INFO("PMD thread on numa_id: %d, core id: %2d created.",
@@ -7370,6 +7370,11 @@ pmd_thread_main(void *f_)
     pmd_alloc_static_tx_qid(pmd);
     set_timer_resolution(PMD_TIMER_RES_NS);
 
+    ovs_tid = (long long)pthread_self();
+    session_id = get_session_id();
+    offset = calc_offset();
+    wait_for_p4runtime();
+
 reload:
     atomic_count_init(&pmd->pmd_overloaded, 0);
 
@@ -7415,13 +7420,7 @@ reload:
 
     pmd->next_rcu_quiesce = pmd->ctx.now + PMD_RCU_QUIESCE_INTERVAL;
 
-    ovs_tid = (long long)pthread_self();
-    p4launcher_add((pthread_t)ovs_tid);
-    session_id = get_session_id();
-    offset = calc_offset();
-    wait_for_p4runtime();
-
-        /* Protect pmd stats from external clearing while polling. */
+    /* Protect pmd stats from external clearing while polling. */
     ovs_mutex_lock(&pmd->perf_stats.stats_mutex);
     for (;;) {
         uint64_t rx_packets = 0, tx_packets = 0;
