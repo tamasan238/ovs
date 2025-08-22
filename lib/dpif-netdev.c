@@ -5602,6 +5602,8 @@ send_packets(struct dp_packet_batch *batch)
         memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         #endif
     }
+    __sync_synchronize(); // prepare for reading
+
     // show_flags();
 
     // struct timeval start, end;
@@ -5627,6 +5629,8 @@ send_packets(struct dp_packet_batch *batch)
         usleep(WAIT_TIME);
     }
     // show_flags();
+
+    __sync_synchronize(); // wait for reading
 
     for (int packets = 0; packets < batch->count; packets++){
         if (*(shm_ptr + offset + PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET)+
