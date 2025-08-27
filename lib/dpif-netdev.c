@@ -5647,7 +5647,7 @@ send_packets(struct dp_packet_batch *batch)
 
     // show_flags();
 
-    // usleep(5); // 外すとまともに動かない．
+    usleep(5); // 外すとスループットが1/4程度になる or パケットの転送が停止する
 
     // syslog(LOG_WARNING, "@@ received / PID: %d, TID: %d", pid, tid);
     *((volatile char *)shm_ptr + offset + SHM_FLAG_RESULTS) = 0;
