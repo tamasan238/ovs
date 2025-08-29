@@ -5517,6 +5517,7 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
 int
 send_packets(struct dp_packet_batch *batch)
 {
+    #define ONLY_FIRST_64_BYTES
     int ret = 0;
 
     struct dp_packet *packet_data;
