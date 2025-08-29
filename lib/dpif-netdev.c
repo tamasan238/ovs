@@ -5602,7 +5602,7 @@ send_packets(struct dp_packet_batch *batch)
         memcpy(dst, packet_data->base_, dp_packet2.allocated_);
         #endif
     }
-    // __sync_synchronize(); // prepare for reading
+    __sync_synchronize(); // prepare for reading
 
     // show_flags();
 
