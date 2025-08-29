@@ -5517,125 +5517,83 @@ dp_netdev_pmd_flush_output_packets(struct dp_netdev_pmd_thread *pmd,
 int
 send_packets(struct dp_packet_batch *batch)
 {
-#define DEBUG_INVESTIGATION
     int ret = 0;
-    uint64_t size = sizeof(struct dp_packet_p4);
 
     struct dp_packet *packet_data;
-    struct dp_packet_p4 dp_packet2;
-    dp_packet2.base_ = NULL;
 
-    #ifdef DEBUG_INVESTIGATION
-    // syslog(LOG_WARNING, "@@ Batch");
-    #endif
-    
-    // show_flags();
+    // パケット送信前にフラグが0になるまで待機
     while (*(shm_ptr + offset + SHM_FLAG_PACKETS) != 0) {
         usleep(WAIT_TIME);
     }
-    // show_flags();
-    memcpy(shm_ptr+offset+SHM_FLAG_HOW_MANY_PACKETS, &batch->count, sizeof(batch->count));
-    // show_flags();
 
-    // syslog(LOG_WARNING, "@@ batch start");
-    for (int packets = 0; packets < batch->count; packets++){
-        // syslog(LOG_WARNING, "@@ packet start");
+    // バッチ数を書き込む
+    *(uint32_t *)(shm_ptr + offset + SHM_FLAG_HOW_MANY_PACKETS) = batch->count;
 
+    for (int packets = 0; packets < batch->count; packets++) {
         packet_data = batch->packets[packets];
-        memset(&dp_packet2, 0, sizeof(dp_packet2));
 
-        if(packet_data->mbuf.data_len==0){
-            syslog(LOG_WARNING, "@@ packet_data->mbuf.data_len==0 (may be dp_packet2.allocated_==0)");
-        }
-#define ONLY_FIRST_64_BYTES
+        // shm_ptr 上に直接構造体を書き込む
+        struct dp_packet_p4 *shm_packet = 
+            (struct dp_packet_p4 *)(shm_ptr + offset + PACKETS_AREA + packets * SHM_SIZE_PER_PACKET);
+
         #ifdef DPDK_NETDEV
-        dp_packet2.allocated_ = packet_data->mbuf.data_len;
+        shm_packet->allocated_ = packet_data->mbuf.data_len;
         #ifdef ONLY_FIRST_64_BYTES
         if (packet_data->mbuf.data_len > 64) {
-            dp_packet2.allocated_ = 64;
+            shm_packet->allocated_ = 64;
         }
         #endif
-        dp_packet2.data_ofs = packet_data->mbuf.data_off;
-        dp_packet2.size_ = packet_data->mbuf.pkt_len;
-        dp_packet2.ol_flags = packet_data->mbuf.ol_flags;
-        dp_packet2.rss_hash = packet_data->mbuf.hash.rss;
-        dp_packet2.flow_mark = packet_data->mbuf.hash.fdir.hi;
+        shm_packet->data_ofs = packet_data->mbuf.data_off;
+        shm_packet->size_ = packet_data->mbuf.pkt_len;
+        shm_packet->ol_flags = packet_data->mbuf.ol_flags;
+        shm_packet->rss_hash = packet_data->mbuf.hash.rss;
+        shm_packet->flow_mark = packet_data->mbuf.hash.fdir.hi;
         #else
-        dp_packet2.allocated_ = packet_data->allocated_;
+        shm_packet->allocated_ = packet_data->allocated_;
         #ifdef ONLY_FIRST_64_BYTES
         if (packet_data->allocated_ > 64) {
-            dp_packet2.allocated_ = 64;
+            shm_packet->allocated_ = 64;
         }
         #endif
-        dp_packet2.data_ofs = packet_data->data_ofs;
-        dp_packet2.size_ = packet_data->size_;
-        dp_packet2.ol_flags = packet_data->ol_flags;
-        dp_packet2.rss_hash = packet_data->rss_hash;
-        dp_packet2.flow_mark = packet_data->flow_mark;
+        shm_packet->data_ofs = packet_data->data_ofs;
+        shm_packet->size_ = packet_data->size_;
+        shm_packet->ol_flags = packet_data->ol_flags;
+        shm_packet->rss_hash = packet_data->rss_hash;
+        shm_packet->flow_mark = packet_data->flow_mark;
         #endif
-        dp_packet2.source = packet_data->source;
-        dp_packet2.l2_pad_size = packet_data->l2_pad_size;
-        dp_packet2.l2_5_ofs = packet_data->l2_5_ofs;
-        dp_packet2.l3_ofs = packet_data->l3_ofs;
-        dp_packet2.l4_ofs = packet_data->l4_ofs;
-        dp_packet2.cutlen = packet_data->cutlen;
-        dp_packet2.packet_type = packet_data->packet_type;
-        dp_packet2.csum_start = packet_data->csum_start;
-        dp_packet2.csum_offset = packet_data->csum_offset;
 
-        // dp_packet2
-        memset(shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET), 
-            0, SHM_SIZE_DP_PACKET_2);
-        memcpy(shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET), 
-            &dp_packet2, size);
-        
-        // packet
-        memset(shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-            SHM_SIZE_DP_PACKET_2, 0, SHM_SIZE_PACKET);
-        void *dst = shm_ptr+offset+PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-            SHM_SIZE_DP_PACKET_2;
+        shm_packet->source = packet_data->source;
+        shm_packet->l2_pad_size = packet_data->l2_pad_size;
+        shm_packet->l2_5_ofs = packet_data->l2_5_ofs;
+        shm_packet->l3_ofs = packet_data->l3_ofs;
+        shm_packet->l4_ofs = packet_data->l4_ofs;
+        shm_packet->cutlen = packet_data->cutlen;
+        shm_packet->packet_type = packet_data->packet_type;
+        shm_packet->csum_start = packet_data->csum_start;
+        shm_packet->csum_offset = packet_data->csum_offset;
+
+        // パケットデータをコピー（必要なバイト数のみ）
+        void *dst = (void *)(shm_ptr + offset + PACKETS_AREA + packets * SHM_SIZE_PER_PACKET + SHM_SIZE_DP_PACKET_2);
 
         #ifdef DPDK_NETDEV
         void *src = rte_pktmbuf_mtod(&packet_data->mbuf, void *);
-        memcpy(dst, src, dp_packet2.allocated_); // copy only first segment
+        memcpy(dst, src, shm_packet->allocated_);
         #else
-        memcpy(dst, packet_data->base_, dp_packet2.allocated_);
+        memcpy(dst, packet_data->base_, shm_packet->allocated_);
         #endif
     }
-    __sync_synchronize(); // prepare for reading
 
-    // show_flags();
-
-    // struct timeval start, end;
-    // long elapsed_us;
-    // gettimeofday(&start, NULL);
-
-    // pid_t pid = getpid();
-    // pid_t tid = (pid_t) syscall(SYS_gettid);
-    // syslog(LOG_WARNING, "@@ sent / PID: %d, TID: %d", pid, tid);
-
-    // gettimeofday(&end, NULL);
-    // elapsed_us = (end.tv_sec - start.tv_sec) * 1000000L + (end.tv_usec - start.tv_usec);
-    // syslog(LOG_WARNING, "@@ syslog use(us): %ld", elapsed_us);
-
-    // usleep(5);
-
+    // パケット送信完了フラグ
     *((volatile char *)shm_ptr + offset + SHM_FLAG_PACKETS) = 1;
 
-    // show_flags();
-
-    // result
+    // 結果待機
     while (*(shm_ptr + offset + SHM_FLAG_RESULTS) != 1) {
         usleep(WAIT_TIME);
     }
-    // show_flags();
 
-    // __sync_synchronize(); // wait for reading
-
-    for (int packets = 0; packets < batch->count; packets++){
-        if (*(shm_ptr + offset + PACKETS_AREA+(packets*SHM_SIZE_PER_PACKET)+
-            SHM_SIZE_DP_PACKET_2+SHM_SIZE_PACKET) != 1){ // drop
-            // Shift packets to the left
+    // drop 判定
+    for (int packets = 0; packets < batch->count; packets++) {
+        if (*(shm_ptr + offset + PACKETS_AREA + packets * SHM_SIZE_PER_PACKET + SHM_SIZE_DP_PACKET_2 + SHM_SIZE_PACKET) != 1) {
             for (int i = packets; i < batch->count - 1; i++) {
                 batch->packets[i] = batch->packets[i + 1];
             }
@@ -5645,28 +5603,17 @@ send_packets(struct dp_packet_batch *batch)
         }
     }
 
-    // show_flags();
-
-    // usleep(5); // 外すとスループットが1/4程度になる or パケットの転送が停止する
-
-    // syslog(LOG_WARNING, "@@ received / PID: %d, TID: %d", pid, tid);
     *((volatile char *)shm_ptr + offset + SHM_FLAG_RESULTS) = 0;
 
-    // show_flags();
-    
-    // TODO: Implement shutdown logic
-
-    if (ret == -1){
-    }else if(batch->count > 0) { // pass
+    if (batch->count > 0) {
         ret = 0;
-    }else if(batch->count == 0){ // drop
+    } else {
         ret = 1;
-    }else{
-        ret = -1;
     }
-    
+
     return ret;
 }
+
 
 static int
 dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
