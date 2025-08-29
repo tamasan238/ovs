@@ -41,7 +41,7 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
-#define WAIT_TIME 50
+#define WAIT_TIME 10
 
 /* for shm */
 #define SHM_NAME "/dev/shm/ivshmem"
