@@ -6679,7 +6679,7 @@ delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
     HMAP_FOR_EACH (poll, node, &pmd->poll_list) {
         struct netdev *n = netdev_rxq_get_netdev(poll->rxq->rx);
         const char *name = netdev_get_name(n);
-        // syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
+        syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
         if(strcmp(name, "dpdk0") == 0){
             syslog(LOG_INFO, "dpdk0を担当するPMDスレッドのP4セッションを無効化");
             p4launcher_del(pmd->thread);
