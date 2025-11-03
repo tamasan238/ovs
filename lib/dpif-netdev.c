@@ -6678,7 +6678,7 @@ dump_pmd_ifaces(struct dp_netdev_pmd_thread *pmd)
     syslog(LOG_INFO, "このPMDが担当しているインタフェースは次の通り：");
 
     HMAP_FOR_EACH (poll, node, &pmd->poll_list) {
-        struct netdev *n = netdev_rxq_get_netdev(&poll->rxq->up);
+        struct netdev *n = netdev_rxq_get_netdev(poll->rxq->rx);
         const char *name = netdev_get_name(n);
         syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
     }
