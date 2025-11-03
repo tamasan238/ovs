@@ -6789,7 +6789,7 @@ reconfigure_pmd_threads(struct dp_netdev *dp)
             ds_put_format(&name, "pmd-c%02d/id:", core->core_id);
             pmd->thread = ovs_thread_create(ds_cstr(&name),
                                             pmd_thread_main, pmd);
-            dump_pmd_ifaces(pmd);
+            // dump_pmd_ifaces(pmd); // ここだと出てこない(作成後，reloadによって担当キューが指定される)
             p4launcher_add(pmd->thread);
             ds_destroy(&name);
 
@@ -7392,6 +7392,8 @@ pmd_thread_main(void *f_)
     pmd_alloc_static_tx_qid(pmd);
     set_timer_resolution(PMD_TIMER_RES_NS);
 
+    dump_pmd_ifaces(pmd);
+
     ovs_tid = (long long)pthread_self();
     session_id = get_session_id();
     offset = calc_offset();
@@ -7556,7 +7558,7 @@ reload:
     /* Signal here to make sure the pmd finishes
      * reloading the updated configuration. */
     dp_netdev_pmd_reload_done(pmd);
-    dump_pmd_ifaces(pmd);
+    // dump_pmd_ifaces(pmd); // ここだと，頻回すぎる
 
     if (reload_tx_qid) {
         pmd_free_static_tx_qid(pmd);
