@@ -6670,23 +6670,6 @@ reload_affected_pmds(struct dp_netdev *dp)
 }
 
 void
-dump_pmd_ifaces(struct dp_netdev_pmd_thread *pmd)
-{
-    struct rxq_poll *poll;
-
-    openlog("ovs-pmd", LOG_PID, LOG_DAEMON);
-    syslog(LOG_INFO, "このPMDが担当しているインタフェースは次の通り：");
-
-    HMAP_FOR_EACH (poll, node, &pmd->poll_list) {
-        struct netdev *n = netdev_rxq_get_netdev(poll->rxq->rx);
-        const char *name = netdev_get_name(n);
-        syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
-    }
-
-    closelog();
-}
-
-void
 delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
 {
     struct rxq_poll *poll;
@@ -6807,7 +6790,6 @@ reconfigure_pmd_threads(struct dp_netdev *dp)
             ds_put_format(&name, "pmd-c%02d/id:", core->core_id);
             pmd->thread = ovs_thread_create(ds_cstr(&name),
                                             pmd_thread_main, pmd);
-            // dump_pmd_ifaces(pmd); // ここだと出てこない(作成後，reloadによって担当キューが指定される)
             p4launcher_add(pmd->thread);
             ds_destroy(&name);
 
@@ -7410,8 +7392,6 @@ pmd_thread_main(void *f_)
     pmd_alloc_static_tx_qid(pmd);
     set_timer_resolution(PMD_TIMER_RES_NS);
 
-    // dump_pmd_ifaces(pmd); // ここだと，まだiface情報が入っていない
-
     ovs_tid = (long long)pthread_self();
     session_id = get_session_id();
     offset = calc_offset();
@@ -7576,7 +7556,6 @@ reload:
     /* Signal here to make sure the pmd finishes
      * reloading the updated configuration. */
     dp_netdev_pmd_reload_done(pmd);
-    // dump_pmd_ifaces(pmd); // ここだと，頻回すぎる
     delete_p4runtime_for_uplink(pmd);
 
 
