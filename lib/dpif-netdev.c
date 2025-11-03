@@ -6673,6 +6673,7 @@ void
 delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
 {
     struct rxq_poll *poll;
+    bool has_dpdk0 = false;
 
     // syslog(LOG_INFO, "このPMDが担当しているインタフェースは次の通り：");
 
@@ -6681,14 +6682,20 @@ delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
         const char *name = netdev_get_name(n);
         syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
         if(strcmp(name, "dpdk0") == 0){
-            syslog(LOG_INFO, "dpdk0を担当するPMDスレッドのP4セッションを無効化");
-            p4launcher_del(pmd->thread);
-        }else{
-            for (int i = 0; i < MAX_CONNECTIONS; i++)
-                if (session[i].ovs_thread_id == (long long)(pmd->thread))
-                    return;
-            p4launcher_add(pmd->thread);
+            has_dpdk0 = true;
+            // syslog(LOG_INFO, "dpdk0を担当するPMDスレッドのP4セッションを無効化");
+            // p4launcher_del(pmd->thread);
         }
+        // else{
+        //     for (int i = 0; i < MAX_CONNECTIONS; i++)
+        //         if (session[i].ovs_thread_id == (long long)(pmd->thread))
+        //             return;
+        //     p4launcher_add(pmd->thread);
+        // }
+        if(has_dpdk0)
+            p4launcher_add(pmd->thread);
+        else
+            p4launcher_del(pmd->thread);
     }
 }
 
