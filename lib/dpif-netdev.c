@@ -7576,7 +7576,9 @@ reload:
     /* Signal here to make sure the pmd finishes
      * reloading the updated configuration. */
     dp_netdev_pmd_reload_done(pmd);
-    dump_pmd_ifaces(pmd); // ここだと，頻回すぎる
+    // dump_pmd_ifaces(pmd); // ここだと，頻回すぎる
+    delete_p4runtime_for_uplink(pmd);
+
 
     if (reload_tx_qid) {
         pmd_free_static_tx_qid(pmd);
