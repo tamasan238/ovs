@@ -40,6 +40,7 @@ void shm_start(void);
 void shm_init(void);
 void shm_end(void);
 int send_packets(struct dp_packet_batch *);
+bool is_processing_target(pthread_t thread_id);
 void delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd);
 void p4launcher_add(pthread_t);
 void p4launcher_del(pthread_t);

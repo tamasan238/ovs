@@ -5703,7 +5703,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     syslog(LOG_WARNING, "@ (netdev_rxq_recv)");
     #endif
 
-    if (!error) {
+    if (!error && is_processing_target(pmd->thread)) {
         error = send_packets(&batch);
         #ifdef DEBUG_RXQ
         syslog(LOG_WARNING, "@ (send_packets)");
@@ -6685,6 +6685,15 @@ delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
             p4launcher_del(pmd->thread);
         }
     }
+}
+
+bool
+is_processing_target(pthread_t thread_id)
+{
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+        if (session[i].ovs_thread_id == (long long)thread_id)
+            return true;
+    return false;
 }
 
 void
