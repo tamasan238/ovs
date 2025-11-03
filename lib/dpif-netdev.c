@@ -6696,7 +6696,7 @@ bool
 is_processing_target(pthread_t thread_id)
 {
     for (int i = 0; i < MAX_CONNECTIONS; i++)
-        if (session[i].ovs_thread_id == (long long)thread_id)
+        if (session[i].ovs_thread_id == (long long)pmd->thread)
             return true;
     return false;
 }
