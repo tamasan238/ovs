@@ -29,6 +29,8 @@
 extern "C" {
 #endif
 
+struct dp_netdev_pmd_thread;
+
 /* Enough headroom to add a vlan tag, plus an extra 2 bytes to allow IP
  * headers to be aligned on a 4-byte boundary.  */
 enum { DP_NETDEV_HEADROOM = 2 + VLAN_HEADER_LEN };
