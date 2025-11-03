@@ -6670,6 +6670,23 @@ reload_affected_pmds(struct dp_netdev *dp)
 }
 
 void
+dump_pmd_ifaces(struct dp_netdev_pmd_thread *pmd)
+{
+    struct rxq_poll *poll;
+
+    openlog("ovs-pmd", LOG_PID, LOG_DAEMON);
+    syslog(LOG_INFO, "このPMDが担当しているインタフェースは次の通り：");
+
+    HMAP_FOR_EACH (poll, node, &pmd->poll_list) {
+        struct netdev *n = netdev_rxq_get_netdev(poll->rxq);
+        const char *name = netdev_get_name(n);
+        syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
+    }
+
+    closelog();
+}
+
+void
 p4launcher_add(pthread_t thread_id)
 {
     for (int i = 0; i < MAX_CONNECTIONS; i++)
@@ -6772,6 +6789,7 @@ reconfigure_pmd_threads(struct dp_netdev *dp)
             ds_put_format(&name, "pmd-c%02d/id:", core->core_id);
             pmd->thread = ovs_thread_create(ds_cstr(&name),
                                             pmd_thread_main, pmd);
+            dump_pmd_ifaces(pmd);
             p4launcher_add(pmd->thread);
             ds_destroy(&name);
 
