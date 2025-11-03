@@ -6683,6 +6683,11 @@ delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
         if(strcmp(name, "dpdk0") == 0){
             syslog(LOG_INFO, "dpdk0を担当するPMDスレッドのP4セッションを無効化");
             p4launcher_del(pmd->thread);
+        }else{
+            for (int i = 0; i < MAX_CONNECTIONS; i++)
+                if (session[i].ovs_thread_id == (long long)thread_id)
+                    break;
+            p4launcher_add(pmd->thread);
         }
     }
 }
