@@ -6686,7 +6686,7 @@ delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
         }else{
             for (int i = 0; i < MAX_CONNECTIONS; i++)
                 if (session[i].ovs_thread_id == (long long)(pmd->thread))
-                    break;
+                    return;
             p4launcher_add(pmd->thread);
         }
     }
