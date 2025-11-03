@@ -6685,7 +6685,7 @@ delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
             p4launcher_del(pmd->thread);
         }else{
             for (int i = 0; i < MAX_CONNECTIONS; i++)
-                if (session[i].ovs_thread_id == (long long)thread_id)
+                if (session[i].ovs_thread_id == (long long)(pmd->thread))
                     break;
             p4launcher_add(pmd->thread);
         }
@@ -6696,7 +6696,7 @@ bool
 is_processing_target(pthread_t thread_id)
 {
     for (int i = 0; i < MAX_CONNECTIONS; i++)
-        if (session[i].ovs_thread_id == (long long)(pmd->thread))
+        if (session[i].ovs_thread_id == (long long)thread_id)
             return true;
     return false;
 }
