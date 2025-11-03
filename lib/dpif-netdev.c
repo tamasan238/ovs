@@ -6687,6 +6687,24 @@ dump_pmd_ifaces(struct dp_netdev_pmd_thread *pmd)
 }
 
 void
+delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
+{
+    struct rxq_poll *poll;
+
+    // syslog(LOG_INFO, "このPMDが担当しているインタフェースは次の通り：");
+
+    HMAP_FOR_EACH (poll, node, &pmd->poll_list) {
+        struct netdev *n = netdev_rxq_get_netdev(poll->rxq->rx);
+        const char *name = netdev_get_name(n);
+        // syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
+        if(strcmp(name, "dpdk0") == 0){
+            syslog(LOG_INFO, "dpdk0を担当するPMDスレッドのP4セッションを無効化");
+            p4launcher_del(pmd->thread);
+        }
+    }
+}
+
+void
 p4launcher_add(pthread_t thread_id)
 {
     for (int i = 0; i < MAX_CONNECTIONS; i++)
@@ -7392,7 +7410,7 @@ pmd_thread_main(void *f_)
     pmd_alloc_static_tx_qid(pmd);
     set_timer_resolution(PMD_TIMER_RES_NS);
 
-    dump_pmd_ifaces(pmd);
+    // dump_pmd_ifaces(pmd); // ここだと，まだiface情報が入っていない
 
     ovs_tid = (long long)pthread_self();
     session_id = get_session_id();
@@ -7558,7 +7576,7 @@ reload:
     /* Signal here to make sure the pmd finishes
      * reloading the updated configuration. */
     dp_netdev_pmd_reload_done(pmd);
-    // dump_pmd_ifaces(pmd); // ここだと，頻回すぎる
+    dump_pmd_ifaces(pmd); // ここだと，頻回すぎる
 
     if (reload_tx_qid) {
         pmd_free_static_tx_qid(pmd);
