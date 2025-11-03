@@ -6693,9 +6693,9 @@ delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
         //     p4launcher_add(pmd->thread);
         // }
         if(has_dpdk0)
-            p4launcher_add(pmd->thread);
-        else
             p4launcher_del(pmd->thread);
+        else
+            p4launcher_add(pmd->thread);
     }
 }
 
