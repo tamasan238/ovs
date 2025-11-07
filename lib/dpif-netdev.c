@@ -6708,7 +6708,6 @@ bool is_processing_target(pthread_t thread_id)
 
 void p4launcher_add(pthread_t thread_id)
 {
-    if (is_processing_target(thread_id)) return;
     int idx = find_free_session_index();
     if (idx < 0) return;
     session[idx].ovs_thread_id = (long long)thread_id;
@@ -7563,7 +7562,7 @@ reload:
     /* Signal here to make sure the pmd finishes
      * reloading the updated configuration. */
     dp_netdev_pmd_reload_done(pmd);
-    // delete_p4runtime_for_uplink(pmd);
+    delete_p4runtime_for_uplink(pmd);
 
 
     if (reload_tx_qid) {
