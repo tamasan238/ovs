@@ -53,10 +53,6 @@
 
 static int fd;
 static char *shm_ptr;
-
-long long ovs_tid = -1;
-int session_id = -1;
-intptr_t offset = -1;
 /* end */
 
 /* META_AREA */
@@ -72,8 +68,11 @@ typedef struct
 #define SHM_SESSION_TABLE META_AREA
 #define SHM_TABLE_IS_LOCKED (SHM_SESSION_TABLE + sizeof(Connection) * MAX_CONNECTIONS)
 
-Connection *session;
-bool *is_locked;
+static Connection *session;
+static bool *is_locked;
+static intptr_t offset;
+static long long ovs_tid;
+static int session_id;
 /* end */
 
 /* PACKETS_AREA */
