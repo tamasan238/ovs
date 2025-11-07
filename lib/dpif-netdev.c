@@ -62,7 +62,7 @@ typedef struct
     int p4runtime_id;
 } Connection;
 
-#define MAX_CONNECTIONS 512
+#define MAX_CONNECTIONS 32
 // #define MAX_CONNECTIONS 8
 // #define MAX_CONNECTIONS 32
 #define SHM_SESSION_TABLE META_AREA
