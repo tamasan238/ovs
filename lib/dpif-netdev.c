@@ -7562,7 +7562,7 @@ reload:
     /* Signal here to make sure the pmd finishes
      * reloading the updated configuration. */
     dp_netdev_pmd_reload_done(pmd);
-    delete_p4runtime_for_uplink(pmd);
+    // delete_p4runtime_for_uplink(pmd);
 
 
     if (reload_tx_qid) {
