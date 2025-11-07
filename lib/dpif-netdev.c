@@ -6693,11 +6693,16 @@ static bool is_dpdk0_attached(struct dp_netdev_pmd_thread *pmd)
 
 void delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
 {
-    if (is_dpdk0_attached(pmd))
+    if (is_dpdk0_attached(pmd)) {
         p4launcher_del(pmd->thread);
-    else
+        return;
+    }
+
+    if (!is_processing_target(pmd->thread)) {
         p4launcher_add(pmd->thread);
+    }
 }
+
 
 bool is_processing_target(pthread_t thread_id)
 {
