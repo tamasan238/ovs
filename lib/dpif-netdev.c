@@ -5698,7 +5698,7 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     syslog(LOG_WARNING, "@ (netdev_rxq_recv)");
     #endif
 
-    if (!error && is_processing_target(pmd->thread)) {
+    if (!error && is_processing_target(pmd)) {
         error = send_packets(&batch);
         #ifdef DEBUG_RXQ
         syslog(LOG_WARNING, "@ (send_packets)");
@@ -6701,9 +6701,10 @@ void delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
 }
 
 
-bool is_processing_target(pthread_t thread_id)
+bool is_processing_target(struct dp_netdev_pmd_thread *pmd)
 {
-    return find_session_index_by_tid((long long)thread_id) >= 0;
+    // return find_session_index_by_tid((long long)thread_id) >= 0;
+    return is_dpdk0_attached(pmd);
 }
 
 void p4launcher_add(pthread_t thread_id)
