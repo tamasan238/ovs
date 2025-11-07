@@ -1688,18 +1688,14 @@ shm_start(void)
     syslog(LOG_WARNING, "mapped to %p", shm_ptr);
 }
 
-void
-shm_init(void)
+void shm_init(void)
 {
-    syslog(LOG_WARNING, "shm_init() is called");
     /* META_AREA */
     session = (Connection *)(shm_ptr + SHM_SESSION_TABLE);
-    for (int i = 0; i < MAX_CONNECTIONS; i++)
-    {
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
         session[i].ovs_thread_id = -1;
         session[i].p4runtime_id = -1;
     }
-
     is_locked = (bool *)(shm_ptr + SHM_TABLE_IS_LOCKED);
     *is_locked = false;
 
@@ -1707,7 +1703,6 @@ shm_init(void)
     *((char *)shm_ptr + offset + SHM_FLAG_PACKETS) = 0;
     *((char *)shm_ptr + offset + SHM_FLAG_RESULTS) = 0;
 }
-
 
 
 static int
@@ -6670,72 +6665,60 @@ reload_affected_pmds(struct dp_netdev *dp)
     }
 }
 
-void
-delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
-{
-    struct rxq_poll *poll;
-    bool has_dpdk0 = false;
-
-    // syslog(LOG_INFO, "このPMDが担当しているインタフェースは次の通り：");
-
-    HMAP_FOR_EACH (poll, node, &pmd->poll_list) {
-        struct netdev *n = netdev_rxq_get_netdev(poll->rxq->rx);
-        const char *name = netdev_get_name(n);
-        syslog(LOG_INFO, "pmd core %u iface %s", pmd->core_id, name);
-        if(strcmp(name, "dpdk0") == 0){
-            has_dpdk0 = true;
-            // syslog(LOG_INFO, "dpdk0を担当するPMDスレッドのP4セッションを無効化");
-            // p4launcher_del(pmd->thread);
-        }
-        // else{
-        //     for (int i = 0; i < MAX_CONNECTIONS; i++)
-        //         if (session[i].ovs_thread_id == (long long)(pmd->thread))
-        //             return;
-        //     p4launcher_add(pmd->thread);
-        // }
-        if(has_dpdk0)
-            p4launcher_del(pmd->thread);
-        else
-            p4launcher_add(pmd->thread);
-    }
-}
-
-bool
-is_processing_target(pthread_t thread_id)
+static int find_free_session_index(void)
 {
     for (int i = 0; i < MAX_CONNECTIONS; i++)
-        if (session[i].ovs_thread_id == (long long)thread_id)
+        if (session[i].ovs_thread_id == -1 && session[i].p4runtime_id == -1)
+            return i;
+    return -1;
+}
+
+static int find_session_index_by_tid(long long tid)
+{
+    for (int i = 0; i < MAX_CONNECTIONS; i++)
+        if (session[i].ovs_thread_id == tid)
+            return i;
+    return -1;
+}
+
+static bool is_dpdk0_attached(struct dp_netdev_pmd_thread *pmd)
+{
+    struct rxq_poll *poll;
+    HMAP_FOR_EACH (poll, node, &pmd->poll_list) {
+        struct netdev *n = netdev_rxq_get_netdev(poll->rxq->rx);
+        if (strcmp(netdev_get_name(n), "dpdk0") == 0)
             return true;
+    }
     return false;
 }
 
-void
-p4launcher_add(pthread_t thread_id)
+void delete_p4runtime_for_uplink(struct dp_netdev_pmd_thread *pmd)
 {
-    for (int i = 0; i < MAX_CONNECTIONS; i++)
-    {
-        if (session[i].ovs_thread_id == -1 && session[i].p4runtime_id == -1)
-        {
-            session[i].ovs_thread_id = (long long)thread_id;
-            // for debug
-            syslog(LOG_WARNING, "[for P4Launcher] add | TID: %lld, i: %d", (long long)thread_id, i);
-            break;
-        }
-    }
+    if (is_dpdk0_attached(pmd))
+        p4launcher_del(pmd->thread);
+    else
+        p4launcher_add(pmd->thread);
 }
 
-void
-p4launcher_del(pthread_t thread_id)
+bool is_processing_target(pthread_t thread_id)
 {
-    for (int i = 0; i < MAX_CONNECTIONS; i++)
-    {
-        if (session[i].ovs_thread_id == (long long)thread_id)
-        {
-            session[i].ovs_thread_id = -1;
-            // for debug
-            syslog(LOG_WARNING, "[for P4Launcher] del | TID: %lld, i: %d", (long long)thread_id, i);
-        }
-    }
+    return find_session_index_by_tid((long long)thread_id) >= 0;
+}
+
+void p4launcher_add(pthread_t thread_id)
+{
+    int idx = find_free_session_index();
+    if (idx < 0) return;
+    session[idx].ovs_thread_id = (long long)thread_id;
+    syslog(LOG_WARNING, "[for P4Launcher] add | TID: %lld, i: %d", (long long)thread_id, idx);
+}
+
+void p4launcher_del(pthread_t thread_id)
+{
+    int idx = find_session_index_by_tid((long long)thread_id);
+    if (idx < 0) return;
+    session[idx].ovs_thread_id = -1;
+    syslog(LOG_WARNING, "[for P4Launcher] del | TID: %lld, i: %d", (long long)thread_id, idx);
 }
 
 static void
