@@ -43,6 +43,11 @@
 
 #define WAIT_TIME 5
 
+#define BYPASS_30
+#ifdef BYPASS_30
+#include <time.h>
+#endif
+
 /* for shm */
 #define SHM_NAME "/dev/shm/ivshmem"
 #define SHM_SIZE (8 * 1024 * 1024) // 8MB
@@ -5700,7 +5705,16 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     #endif
 
     if (!error && is_processing_target(pmd)) {
+        #ifdef BYPASS_30
+        time_t t = time(NULL);
+        struct tm *lt = localtime(&t);
+
+        if (lt->tm_sec <= 30) {
+            error = send_packets(&batch);
+        }
+        #else
         error = send_packets(&batch);
+        #endif
         #ifdef DEBUG_RXQ
         syslog(LOG_WARNING, "@ (send_packets)");
         #endif
