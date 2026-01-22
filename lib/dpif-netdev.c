@@ -5707,7 +5707,9 @@ dp_netdev_process_rxq_port(struct dp_netdev_pmd_thread *pmd,
     if (!error && is_processing_target(pmd)) {
         #ifdef BYPASS_30
         time_t t = time(NULL);
-        struct tm *lt = localtime(&t);
+        struct tm lt;
+
+        localtime_r(&t, &lt);
 
         if (lt->tm_sec <= 30) {
             error = send_packets(&batch);
